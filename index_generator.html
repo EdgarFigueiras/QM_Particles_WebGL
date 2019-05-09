@@ -1,0 +1,267 @@
+<html>
+<head>
+	<meta charset="UTF-8">
+    <title>Threejs Model Loader</title>
+
+    <style>
+    	body{
+    		margin: 0;
+    		overflow: hidden;
+    	}
+    </style>
+</head>
+<body>
+    <canvas id="myCanvas"></canvas>
+
+    <script src="js/three.js"></script>
+	<script src="js/OrbitControls.js"></script>
+    <script src="js/GLTFLoader.js"></script>
+	<script src="js/dat.gui.min.js"></script>
+	<script src="js/stats.min.js"></script>
+	
+	<script src="js/d3.js"></script>
+	
+    <script>
+		//Data load
+		let arrayData = [];
+
+		fetch( "./data3d/vortex.json" )
+		.then(function(resp) {
+			return resp.json();
+		})
+		.then(function(data) {
+			console.log(data);
+			arrayData = data;
+			createParticles( );
+		});
+
+
+		//Data render
+		let createParticles = function( ){
+	
+			//Renderer creation
+			var renderer,
+				myCanvas = document.getElementById('myCanvas');
+
+			renderer = new THREE.WebGLRenderer({
+			  canvas: myCanvas, 
+			  antialias: true
+			});
+			renderer.setClearColor(0x000000);
+			renderer.setPixelRatio(window.devicePixelRatio);
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			
+			document.body.appendChild( renderer.domElement );
+
+			
+			//Window resizing responsive
+			window.addEventListener( 'resize', function()
+			{
+				var width = window.innerWidth;
+				var height = window.innerHeight;
+				renderer.setSize( width, height);
+				camera.aspect = width / height;
+				camera.updateProjectionMatrix( );
+			} )
+			
+			
+			//Scene
+			var scene = new THREE.Scene();
+
+			//Camera
+			var camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 1000 );
+			camera.position.set( 0, 0, 100 );
+			
+			//Controls
+			var Controls = new THREE.OrbitControls( camera, renderer.domElement );
+			
+			//Ligts
+			var light = new THREE.AmbientLight(0xffffff, 0.5);
+			scene.add(light);
+
+			var light2 = new THREE.PointLight(0xffffff, 0.5);
+			scene.add(light2);
+		
+		
+			//GUI
+			
+			var particleControls = {
+				particlesNumber: 5000,
+				size: 0.5,
+				particleSize: 0.2,
+				scaleColor: 1.0,
+				timeStep: 0,
+				particlesWireframed: false,
+				playForward: false,
+				playBackward: false,
+				cubeSize: 50,
+				bkgColor: "#000000"
+			}
+			
+			//Particles GUI creation
+			var gui = new dat.GUI();
+			var particlesGUI = gui.addFolder("Particles");
+			//var c_mesh_particlesNumber = gui.add(particleControls, 'particlesNumber', 10, arrayData[0].length);
+			var c_mesh_particlesNumber = particlesGUI.add(particleControls, 'particlesNumber', 10, 10000);
+			var c_mesh_size = particlesGUI.add(particleControls, 'size', 0, 5);
+			var c_mesh_particleSize = particlesGUI.add(particleControls, 'particleSize', 0.01, 0.5);
+			var c_mesh_scaleColor = particlesGUI.add(particleControls, 'scaleColor', 0, 2);
+			var c_mesh_particlesWireframed = particlesGUI.add(particleControls, 'particlesWireframed');
+
+			//Time steps GUI
+			var stepsGUI = gui.addFolder("Time Steps");
+			var c_mesh_timeStep = stepsGUI.add(particleControls, 'timeStep', 0, arrayData.length - 1).listen();
+			var c_mesh_playForward = stepsGUI.add(particleControls, 'playForward').listen();
+			var c_mesh_playBackward = stepsGUI.add(particleControls, 'playBackward').listen();
+
+			
+			//Cube GUI
+			//Box geometry creation
+			var geometry = new THREE.BoxGeometry( 1, 1, 1);
+			var material = new THREE.MeshBasicMaterial( { color: 0xFFFFFF, wireframe: true} );
+			var cube = new THREE.Mesh( geometry, material );
+			cube.name = "wired_cube";
+			cube.scale.set( particleControls.cubeSize, particleControls.cubeSize, particleControls.cubeSize );
+			scene.add( cube );
+			//Cube add to GUI
+			var cubeGUI = gui.addFolder("Cube");
+			var c_mesh_cubeEdit = cubeGUI.add(particleControls, 'cubeSize', 1, 300);
+			
+			
+			//Background GUI
+			var bkgGUI = gui.addFolder("Background");
+			var c_mesh_bkgColor = bkgGUI.addColor(particleControls, "bkgColor");
+			
+
+			//Color Scale From deep blue (min psi) to deep red (max psi)
+			var corr_color = d3.scaleLinear( )
+				.domain([0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.85, 0.9, 0.95, 1])					
+				.range(["#000082", "#0000C8", "#0000FF", "#0028FF", "#005AFF", "#0099FF", "#01D4FF", "#26FFD2", "#60FF96", "#86FF73", 
+						"#B1FF47", "#E4FF14", "#FFD300", "#FFA300", "#FF6400", "#FF3C00", "#F50A00", "#C80000", "#9B0000", "#830000"]);		
+				
+			
+			//Loop to position particles
+			var placeParticles = function( ){
+				
+				//Clear the Scene
+				var selectParticlesGroup = scene.getObjectByName("particles_group");
+				scene.remove( selectParticlesGroup );
+				
+				//scene.remove.apply(scene, scene.children);
+				
+				//Create a group of objects
+				var particlesGroup = new THREE.Object3D(); //create an empty container 
+
+								
+				for (var x = 0; x < particleControls.particlesNumber; x++) {
+					var tStep = Math.trunc(particleControls.timeStep)
+					var r1 = arrayData[tStep][x][0]
+					var r2 = arrayData[tStep][x][1]
+					var r3 = arrayData[tStep][x][2]
+					var psi = arrayData[tStep][x][3]
+					psi = psi * particleControls.scaleColor;
+						
+					//Both materials Basic and Lambert are efficient in memory
+					//Lambert material reacts to lights generating shades
+					//var material = new THREE.MeshBasicMaterial( { color: corr_color(psi), wireframe: particleControls.particlesWireframed} );
+					var material =  new THREE.MeshLambertMaterial( { color: corr_color(psi), wireframe: particleControls.particlesWireframed} ); 
+					//The second variable of Buffer Geometry is the simplicity of faces of the mesh
+					var geometry = new THREE.IcosahedronBufferGeometry( particleControls.particleSize, 0 )
+					var particle = new THREE.Mesh( geometry, material );
+					particle.position.set( r1, r2, r3 );
+					//scene.add( particle );
+					particlesGroup.add( particle );
+				}
+				scene.add( particlesGroup );
+				particlesGroup.name = "particles_group";
+				particlesGroup.scale.set( particleControls.size, particleControls.size, particleControls.size );
+			}
+			
+			placeParticles();
+
+			c_mesh_particlesNumber.onChange(function( ){
+				placeParticles( );
+			});
+
+			c_mesh_size.onChange(function( ){
+				placeParticles( );
+			});
+			
+			c_mesh_particleSize.onChange(function( ){
+				placeParticles( );
+			});
+
+			c_mesh_scaleColor.onChange(function( ){
+				placeParticles( );
+			});
+
+			c_mesh_timeStep.onChange(function( ){
+				placeParticles( );
+			});
+			
+			c_mesh_particlesWireframed.onChange(function( ){
+				placeParticles( );
+			});
+			
+			c_mesh_playForward.onChange(function( ){
+				particleControls.playBackward = false;
+			});
+			
+			c_mesh_playBackward.onChange(function( ){
+				particleControls.playForward = false;
+			});
+				
+			c_mesh_cubeEdit.onChange(function( ){
+				var cube = scene.getObjectByName("wired_cube");
+				cube.scale.set( particleControls.cubeSize, particleControls.cubeSize, particleControls.cubeSize );
+			});
+			
+			c_mesh_bkgColor.onChange(function( ){
+				scene.background = new THREE.Color( particleControls.bkgColor );
+			});
+
+
+			var update = function( )
+			{
+			
+			}
+			
+			var render = function( )
+			{
+				renderer.render( scene, camera );
+				
+				//Steps forward 
+				if(particleControls.playForward)
+				{
+					if (particleControls.timeStep == arrayData.length - 1) 
+						particleControls.timeStep = 0;
+					else
+						particleControls.timeStep += 1;
+					placeParticles( );
+				}
+				
+				//Steps backward 
+				if(particleControls.playBackward)
+				{
+					if (particleControls.timeStep == 0) 
+						particleControls.timeStep = arrayData.length -1;
+					else
+						particleControls.timeStep -= 1;
+					placeParticles( );
+				}
+					
+			}
+			
+			var RenderLoop = function( )
+			{
+				requestAnimationFrame( RenderLoop );
+				
+				update( );
+				render( );
+			}
+			
+			RenderLoop( );
+		}
+    </script>
+</body>
+</html>
