@@ -7,8 +7,20 @@
     	body{
     		margin: 0;
     		overflow: hidden;
+			background-color: black;
     	}
+		
+		header {
+			font-family: verdana;
+			background-color: #666;
+			padding: 30px;
+			text-align: center;
+			font-size: 35px;
+			color: white;
+		}
+		
     </style>
+
 </head>
 <body>
     <canvas id="myCanvas"></canvas>
@@ -21,19 +33,53 @@
 	
 	<script src="js/d3.js"></script>
 	
+	
+	<header id="header">
+		<h2><strong>QM Particles simulation with WebGL using the Three.js library</strong></h2>
+		<h4>Select the data file</h4>
+		<input type="file" id="files" name="files[]"  />
+		<output id="list"></output>
+		<div id="loading" style="visibility: hidden" >
+		  <h5>Loading...</h5>
+		</div>
+	</header>
+
+	
     <script>
+	
+		var dataName;
+		function handleFileSelect(evt) {
+			var files = evt.target.files; // FileList object
+
+			// files is a FileList of File objects. List some properties.
+			var output = [];
+			for (var i = 0, f; f = files[i]; i++) {
+				output.push("<strong> File: &nbsp </strong>", escape(f.name), " &nbsp<strong> Size:&nbsp </strong>" , Math.round (f.size / (1024 * 1024)), "&nbsp Mb");
+				dataName = f.name;
+			}
+			document.getElementById('loading').style = "visibility: visible";
+			document.getElementById('list').innerHTML = '<ul>' + output.join('') + '</ul>';
+		dataLoad();
+		}
+		document.getElementById('files').addEventListener('change', handleFileSelect, false);
+		
+		
 		//Data load
 		let arrayData = [];
-
-		fetch( "./data3d/vortex.json" )
-		.then(function(resp) {
-			return resp.json();
-		})
-		.then(function(data) {
-			console.log(data);
-			arrayData = data;
-			createParticles( );
-		});
+		let dataLoad = function( ){
+			//fetch( "./data3d/vortex.json" )
+			fetch( './data3d/'.concat( dataName ) )
+			.then(function(resp) {
+				return resp.json();
+			})
+			.then(function(data) {
+				console.log(data);
+				arrayData = data;
+				//Hide the header to enable the render 3D full screen 
+				document.getElementById('header').style.display = "none";
+				createParticles( );
+			});
+		}
 
 
 		//Data render
@@ -82,9 +128,16 @@
 			var light2 = new THREE.PointLight(0xffffff, 0.5);
 			scene.add(light2);
 		
-		
+            var psiMaxValue = 1;
+            //Load PSI data to set the max value
+            for (var x = 0; x < arrayData.length - 1; x++){
+                for (var y = 0; y < arrayData[0].length; y++){
+                    if (arrayData[x][y][3] > psiMaxValue)
+                        psiMaxValue = arrayData[x][y][3];
+                }
+            }
+            
 			//GUI
-			
 			var particleControls = {
 				particlesNumber: 5000,
 				size: 0.5,
@@ -95,17 +148,21 @@
 				playForward: false,
 				playBackward: false,
 				cubeSize: 50,
-				bkgColor: "#000000"
+				bkgColor: "#000000",
+                psiMax: psiMaxValue,
+                psiMin: 0
 			}
 			
 			//Particles GUI creation
 			var gui = new dat.GUI();
 			var particlesGUI = gui.addFolder("Particles");
 			//var c_mesh_particlesNumber = gui.add(particleControls, 'particlesNumber', 10, arrayData[0].length);
-			var c_mesh_particlesNumber = particlesGUI.add(particleControls, 'particlesNumber', 10, 10000);
+			var c_mesh_particlesNumber = particlesGUI.add(particleControls, 'particlesNumber', 10, arrayData[0].length);
 			var c_mesh_size = particlesGUI.add(particleControls, 'size', 0, 5);
 			var c_mesh_particleSize = particlesGUI.add(particleControls, 'particleSize', 0.01, 0.5);
 			var c_mesh_scaleColor = particlesGUI.add(particleControls, 'scaleColor', 0, 2);
+            var c_mesh_psiMax = particlesGUI.add(particleControls, 'psiMax', 0, psiMaxValue);
+            var c_mesh_psiMin = particlesGUI.add(particleControls, 'psiMin', 0, psiMaxValue);
 			var c_mesh_particlesWireframed = particlesGUI.add(particleControls, 'particlesWireframed');
 
 			//Time steps GUI
@@ -125,34 +182,92 @@
 			scene.add( cube );
 			//Cube add to GUI
 			var cubeGUI = gui.addFolder("Cube");
-			var c_mesh_cubeEdit = cubeGUI.add(particleControls, 'cubeSize', 1, 300);
+			var c_mesh_cubeEdit = cubeGUI.add(particleControls, 'cubeSize', 0, 300);
 			
 			
 			//Background GUI
 			var bkgGUI = gui.addFolder("Background");
 			var c_mesh_bkgColor = bkgGUI.addColor(particleControls, "bkgColor");
 			
-
+            
+            //Color functions with gradation
 			//Color Scale From deep blue (min psi) to deep red (max psi)
 			var corr_color = d3.scaleLinear( )
 				.domain([0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.85, 0.9, 0.95, 1])					
-				.range(["#000082", "#0000C8", "#0000FF", "#0028FF", "#005AFF", "#0099FF", "#01D4FF", "#26FFD2", "#60FF96", "#86FF73", 
-						"#B1FF47", "#E4FF14", "#FFD300", "#FFA300", "#FF6400", "#FF3C00", "#F50A00", "#C80000", "#9B0000", "#830000"]);		
-				
+				.range(["#000082", "#0000C8", "#0000FF", "#0028FF", "#005AFF", "#0099FF", "#01D4FF", "#26FFD2", "#60FF96", "#86FF73", "#B1FF47", "#E4FF14", "#FFD300", "#FFA300", "#FF6400", "#FF3C00", "#F50A00", "#C80000", "#9B0000", "#830000"]);	
+            
+            //Color Scale From deep blue (min psi) to deep red (max psi)
+			var corr_color_rgb = d3.scaleLinear( )
+				.domain([0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.85, 0.9, 0.95, 1])					
+				.range([[0, 0, 130], [0, 0, 200], [0, 0, 255], [0, 40, 255], [0, 90, 255], [0, 153, 255], [1, 212, 255], [38, 255, 210], [96, 255, 150], [134, 255, 115], [177, 255, 71], [228, 255, 20], [255, 211, 0], [255, 163, 0], [255, 100, 0], [255, 60, 0], [245, 10, 0], [200, 0, 0], [155, 0, 0], [131, 0, 0]]);	
+            
+            
+            //Color functions with stablished steps of colour
+            var calculate_color_by_amplitude = function(amplitude, min, max)
+            {
+                //Colors array, from dark blue (Lowest probability) to dark red (Highest probability)
+                color = [0,0,0]
+
+                colorArray = [[0, 0, 130], [0, 0, 200], [0, 0, 255], [0, 40, 255], [0, 90, 255], [0, 153, 255], [1, 212, 255], [38, 255, 210], [96, 255, 150], [134, 255, 115], [177, 255, 71], [228, 255, 20], [255, 211, 0], [255, 163, 0], [255, 100, 0], [255, 60, 0], [245, 10, 0], [200, 0, 0], [155, 0, 0], [131, 0, 0]];
+
+                //Calculate the step to use the full range of colours between min and max psi values
+                //Calculate the amplitude to adjust the new steps.
+                //Amplitude_in_order_0-1 = (Amplitude - minPsi)/(maxPsi-minPsi)
+
+                //print("x_ampl = ", amplitude, "-", min, "/(", max , "-", min, ")" )
+                x_ampl = (amplitude - min)/(max-min);
+
+                //20 steps of colours, amplitude from 0.0 to 1.0
+                indexOfColor = Math.floor(x_ampl / 0.05);
+
+                if (indexOfColor > 19)
+                    indexOfColor = 19
+
+                color[0] = colorArray[indexOfColor][0];
+                color[1] = colorArray[indexOfColor][1];
+                color[2] = colorArray[indexOfColor][2];
+
+                return color
+            }
+            
+            var calculate_color_by_amplitude_hex = function(amplitude, min, max)
+            {    
+                //Colors array, from dark blue (Lowest probability) to dark red (Highest probability)
+                colorArray = ["#000082", "#0000C8", "#0000FF", "#0028FF", "#005AFF", "#0099FF", "#01D4FF", "#26FFD2", "#60FF96", "#86FF73", "#B1FF47", "#E4FF14", "#FFD300", "#FFA300", "#FF6400", "#FF3C00", "#F50A00", "#C80000", "#9B0000", "#830000"];
+
+                //Calculate the step to use the full range of colours between min and max psi values
+                //Calculate the amplitude to adjust the new steps.
+                //Amplitude_in_order_0-1 = (Amplitude - minPsi)/(maxPsi-minPsi)
+
+                //print("x_ampl = ", amplitude, "-", min, "/(", max , "-", min, ")" )
+                x_ampl = (amplitude - min)/(max-min);
+                
+                //20 steps of colours, amplitude from 0.0 to 1.0
+                indexOfColor = Math.floor(x_ampl / 0.05);
+                
+                if (indexOfColor > 19)
+                    indexOfColor = 19
+
+                return colorArray[indexOfColor];
+            }
+
+            
+            //Delete all objects at the screen
+            let clear_screen = function( ){
+                //Clear the Scene
+				var selectParticlesGroup = scene.getObjectByName("particles_group");
+				scene.remove( selectParticlesGroup );
+                //Clear the scene if low render mode was used
+                var selectParticlesGroupLowRender = scene.getObjectByName("particles_low_render_group");
+				scene.remove( selectParticlesGroupLowRender );
+            }
 			
 			//Loop to position particles
 			var placeParticles = function( ){
-				
-				//Clear the Scene
-				var selectParticlesGroup = scene.getObjectByName("particles_group");
-				scene.remove( selectParticlesGroup );
-				
-				//scene.remove.apply(scene, scene.children);
-				
+                
 				//Create a group of objects
 				var particlesGroup = new THREE.Object3D(); //create an empty container 
-
-								
+	
 				for (var x = 0; x < particleControls.particlesNumber; x++) {
 					var tStep = Math.trunc(particleControls.timeStep)
 					var r1 = arrayData[tStep][x][0]
@@ -160,11 +275,12 @@
 					var r3 = arrayData[tStep][x][2]
 					var psi = arrayData[tStep][x][3]
 					psi = psi * particleControls.scaleColor;
-						
+				    
+                    
 					//Both materials Basic and Lambert are efficient in memory
 					//Lambert material reacts to lights generating shades
 					//var material = new THREE.MeshBasicMaterial( { color: corr_color(psi), wireframe: particleControls.particlesWireframed} );
-					var material =  new THREE.MeshLambertMaterial( { color: corr_color(psi), wireframe: particleControls.particlesWireframed} ); 
+					var material =  new THREE.MeshLambertMaterial( { color: calculate_color_by_amplitude_hex(psi, particleControls.psiMin, particleControls.psiMax), wireframe: particleControls.particlesWireframed} ); 
 					//The second variable of Buffer Geometry is the simplicity of faces of the mesh
 					var geometry = new THREE.IcosahedronBufferGeometry( particleControls.particleSize, 0 )
 					var particle = new THREE.Mesh( geometry, material );
@@ -172,13 +288,53 @@
 					//scene.add( particle );
 					particlesGroup.add( particle );
 				}
+                
+                clear_screen();
+                
 				scene.add( particlesGroup );
 				particlesGroup.name = "particles_group";
 				particlesGroup.scale.set( particleControls.size, particleControls.size, particleControls.size );
 			}
-			
-			placeParticles();
+            
+            placeParticles();
+            
+            //Loop to position particles using low render spec
+			var placeParticlesLowRender = function( ){
+				
+                //Double of particles used in the other simulation
+                var particles = particleControls.particlesNumber * 2;
+                var geometry = new THREE.BufferGeometry();
+                var positions = [];
+				var colors = [];
+                
+				for (var x = 0; x < particles; x++) {
+					var tStep = Math.trunc(particleControls.timeStep)
+					var r1 = arrayData[tStep][x][0]
+					var r2 = arrayData[tStep][x][1]
+					var r3 = arrayData[tStep][x][2]
+					var psi = arrayData[tStep][x][3]
+					psi = psi * particleControls.scaleColor;
+                    
+                    positions.push(r1, r2, r3);   
+                    
+                    color_calculated = calculate_color_by_amplitude(psi, particleControls.psiMin, particleControls.psiMax) 
+                    colors.push(color_calculated[0], color_calculated[1], color_calculated[2])      
+				}
+                                
+				geometry.addAttribute( 'position', new THREE.Float32BufferAttribute( positions, 3 ) );
+				geometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
+                
+                var material = new THREE.PointsMaterial( { size: particleControls.particleSize, vertexColors: THREE.VertexColors } );
+                
+                points = new THREE.Points( geometry, material );
+                
+                clear_screen();
+                
+                scene.add( points );
+                points.name = "particles_low_render_group"
+			}
 
+            
 			c_mesh_particlesNumber.onChange(function( ){
 				placeParticles( );
 			});
@@ -190,18 +346,31 @@
 			c_mesh_particleSize.onChange(function( ){
 				placeParticles( );
 			});
+            
+            c_mesh_psiMax.onChange(function( ){
+                placeParticlesLowRender( );
+				//placeParticles( );
+			});
+            
+            c_mesh_psiMin.onChange(function( ){
+                placeParticlesLowRender( );
+				//placeParticles( );
+			});
 
 			c_mesh_scaleColor.onChange(function( ){
 				placeParticles( );
 			});
 
 			c_mesh_timeStep.onChange(function( ){
-				placeParticles( );
+				placeParticlesLowRender( );
 			});
 			
 			c_mesh_particlesWireframed.onChange(function( ){
 				placeParticles( );
 			});
+
+			//Enables the optimization while playing animation mode
+			//render_reduction = false;
 			
 			c_mesh_playForward.onChange(function( ){
 				particleControls.playBackward = false;
@@ -210,7 +379,8 @@
 			c_mesh_playBackward.onChange(function( ){
 				particleControls.playForward = false;
 			});
-				
+                        
+
 			c_mesh_cubeEdit.onChange(function( ){
 				var cube = scene.getObjectByName("wired_cube");
 				cube.scale.set( particleControls.cubeSize, particleControls.cubeSize, particleControls.cubeSize );
@@ -237,7 +407,7 @@
 						particleControls.timeStep = 0;
 					else
 						particleControls.timeStep += 1;
-					placeParticles( );
+					placeParticlesLowRender( );
 				}
 				
 				//Steps backward 
@@ -247,7 +417,7 @@
 						particleControls.timeStep = arrayData.length -1;
 					else
 						particleControls.timeStep -= 1;
-					placeParticles( );
+					placeParticlesLowRender( );
 				}
 					
 			}
