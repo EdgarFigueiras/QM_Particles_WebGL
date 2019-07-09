@@ -140,7 +140,7 @@
 			//GUI
 			var particleControls = {
 				particlesNumber: 5000,
-				size: 0.5,
+				size: 1,
 				particleSize: 0.2,
 				scaleColor: 1.0,
 				timeStep: 0,
@@ -207,8 +207,9 @@
             {
                 //Colors array, from dark blue (Lowest probability) to dark red (Highest probability)
                 color = [0,0,0]
-
-                colorArray = [[0, 0, 130], [0, 0, 200], [0, 0, 255], [0, 40, 255], [0, 90, 255], [0, 153, 255], [1, 212, 255], [38, 255, 210], [96, 255, 150], [134, 255, 115], [177, 255, 71], [228, 255, 20], [255, 211, 0], [255, 163, 0], [255, 100, 0], [255, 60, 0], [245, 10, 0], [200, 0, 0], [155, 0, 0], [131, 0, 0]];
+                
+                //Colors must be between 0-1 range instead of using 0-255
+                colorArray = [[0, 0, 0.51], [0, 0, 0.78], [0, 0, 1], [0, 0.16, 1], [0, 0.35, 1], [0, 0.60, 1], [0, 0.83, 1], [0.15, 1, 0.82], [0.38, 1, 0.59], [0.53, 1, 0.45], [0.69, 1, 0.28], [0.89, 1, 0.8], [1, 0.83, 0], [1, 0.64, 0], [1, 0.39, 0], [1, 0.24, 0], [0.96, 0.4, 0], [0.78, 0, 0], [0.61, 0, 0], [0.51, 0, 0]];
 
                 //Calculate the step to use the full range of colours between min and max psi values
                 //Calculate the amplitude to adjust the new steps.
@@ -222,7 +223,7 @@
 
                 if (indexOfColor > 19)
                     indexOfColor = 19
-
+                
                 color[0] = colorArray[indexOfColor][0];
                 color[1] = colorArray[indexOfColor][1];
                 color[2] = colorArray[indexOfColor][2];
@@ -314,7 +315,7 @@
 					var r3 = arrayData[tStep][x][2]
 					var psi = arrayData[tStep][x][3]
 					psi = psi * particleControls.scaleColor;
-                    
+                            
                     positions.push(r1, r2, r3);   
                     
                     color_calculated = calculate_color_by_amplitude(psi, particleControls.psiMin, particleControls.psiMax) 
@@ -322,7 +323,7 @@
 				}
                                 
 				geometry.addAttribute( 'position', new THREE.Float32BufferAttribute( positions, 3 ) );
-				geometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
+                geometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3, true) );
                 
                 var material = new THREE.PointsMaterial( { size: particleControls.particleSize, vertexColors: THREE.VertexColors } );
                 
