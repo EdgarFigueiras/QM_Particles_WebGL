@@ -19,4 +19,4 @@ Matrix structure: **matrix[timeSteps][ParticlesNumber][x,y,z,psiValue]**
 7. Box of environment
 8. Background color
 
-Actual version 1.0
+Actual version 2.2

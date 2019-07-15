@@ -63,7 +63,7 @@
 		}
 		document.getElementById('files').addEventListener('change', handleFileSelect, false);
 		
-		
+        
 		//Data load
 		let arrayData = [];
 		let dataLoad = function( ){
@@ -138,9 +138,9 @@
             }
             
 			//GUI
+            //Particle variables
 			var particleControls = {
 				particlesNumber: 5000,
-				size: 1,
 				particleSize: 0.2,
 				scaleColor: 1.0,
 				timeStep: 0,
@@ -152,18 +152,25 @@
                 psiMax: psiMaxValue,
                 psiMin: 0
 			}
+            
+            //3D model variables
+            var modelControls = {
+                Enable3DModel: function() { placeParticles(); },
+                objectsNumber: 5000,
+                objectSize: 0.2,
+                modelSize: 1,
+                particlesWireframed: false
+            }
 			
 			//Particles GUI creation
 			var gui = new dat.GUI();
 			var particlesGUI = gui.addFolder("Particles");
 			//var c_mesh_particlesNumber = gui.add(particleControls, 'particlesNumber', 10, arrayData[0].length);
 			var c_mesh_particlesNumber = particlesGUI.add(particleControls, 'particlesNumber', 10, arrayData[0].length);
-			var c_mesh_size = particlesGUI.add(particleControls, 'size', 0, 5);
 			var c_mesh_particleSize = particlesGUI.add(particleControls, 'particleSize', 0.01, 0.5);
 			var c_mesh_scaleColor = particlesGUI.add(particleControls, 'scaleColor', 0, 2);
             var c_mesh_psiMax = particlesGUI.add(particleControls, 'psiMax', 0, psiMaxValue);
             var c_mesh_psiMin = particlesGUI.add(particleControls, 'psiMin', 0, psiMaxValue);
-			var c_mesh_particlesWireframed = particlesGUI.add(particleControls, 'particlesWireframed');
 
 			//Time steps GUI
 			var stepsGUI = gui.addFolder("Time Steps");
@@ -171,6 +178,13 @@
 			var c_mesh_playForward = stepsGUI.add(particleControls, 'playForward').listen();
 			var c_mesh_playBackward = stepsGUI.add(particleControls, 'playBackward').listen();
 
+            //3D model GUI
+            var modelGUI = gui.addFolder("3D Model");
+            modelGUI.add(modelControls, "Enable3DModel");
+            var c_mesh_objectsNumber = modelGUI.add(modelControls, 'objectsNumber', 10, arrayData[0].length);
+            var c_mesh_objectSize = modelGUI.add(modelControls, 'objectSize', 0.01, 0.5);
+            var c_mesh_modelSize = modelGUI.add(modelControls, 'modelSize', 0, 5);
+            var c_mesh_particlesWireframed = modelGUI.add(modelControls, 'particlesWireframed');
 			
 			//Cube GUI
 			//Box geometry creation
@@ -188,6 +202,7 @@
 			//Background GUI
 			var bkgGUI = gui.addFolder("Background");
 			var c_mesh_bkgColor = bkgGUI.addColor(particleControls, "bkgColor");
+            
 			
             
             //Color functions with gradation
@@ -209,7 +224,7 @@
                 color = [0,0,0]
                 
                 //Colors must be between 0-1 range instead of using 0-255
-                colorArray = [[0, 0, 0.51], [0, 0, 0.78], [0, 0, 1], [0, 0.16, 1], [0, 0.35, 1], [0, 0.60, 1], [0, 0.83, 1], [0.15, 1, 0.82], [0.38, 1, 0.59], [0.53, 1, 0.45], [0.69, 1, 0.28], [0.89, 1, 0.8], [1, 0.83, 0], [1, 0.64, 0], [1, 0.39, 0], [1, 0.24, 0], [0.96, 0.4, 0], [0.78, 0, 0], [0.61, 0, 0], [0.51, 0, 0]];
+                colorArray = [[0, 0, 0.51], [0, 0, 0.78], [0, 0, 1], [0, 0.16, 1], [0, 0.35, 1], [0, 0.60, 1], [0, 0.83, 1], [0.15, 1, 0.82], [0.38, 1, 0.59], [0.53, 1, 0.45], [0.69, 1, 0.28], [0.89, 1, 0.08], [1, 0.83, 0], [1, 0.64, 0], [1, 0.39, 0], [1, 0.24, 0], [0.96, 0.4, 0], [0.78, 0, 0], [0.61, 0, 0], [0.51, 0, 0]];
 
                 //Calculate the step to use the full range of colours between min and max psi values
                 //Calculate the amplitude to adjust the new steps.
@@ -265,45 +280,42 @@
 			
 			//Loop to position particles
 			var placeParticles = function( ){
-                
+
 				//Create a group of objects
 				var particlesGroup = new THREE.Object3D(); //create an empty container 
 	
-				for (var x = 0; x < particleControls.particlesNumber; x++) {
+				for (var x = 0; x < modelControls.objectsNumber; x++) {
 					var tStep = Math.trunc(particleControls.timeStep)
 					var r1 = arrayData[tStep][x][0]
 					var r2 = arrayData[tStep][x][1]
 					var r3 = arrayData[tStep][x][2]
 					var psi = arrayData[tStep][x][3]
 					psi = psi * particleControls.scaleColor;
-				    
-                    
+				      
 					//Both materials Basic and Lambert are efficient in memory
 					//Lambert material reacts to lights generating shades
 					//var material = new THREE.MeshBasicMaterial( { color: corr_color(psi), wireframe: particleControls.particlesWireframed} );
-					var material =  new THREE.MeshLambertMaterial( { color: calculate_color_by_amplitude_hex(psi, particleControls.psiMin, particleControls.psiMax), wireframe: particleControls.particlesWireframed} ); 
+					var material =  new THREE.MeshLambertMaterial( { color: calculate_color_by_amplitude_hex(psi, particleControls.psiMin, particleControls.psiMax), wireframe: modelControls.particlesWireframed} ); 
 					//The second variable of Buffer Geometry is the simplicity of faces of the mesh
-					var geometry = new THREE.IcosahedronBufferGeometry( particleControls.particleSize, 0 )
+					var geometry = new THREE.IcosahedronBufferGeometry( modelControls.objectSize, 0 )
 					var particle = new THREE.Mesh( geometry, material );
 					particle.position.set( r1, r2, r3 );
 					//scene.add( particle );
 					particlesGroup.add( particle );
 				}
-                
+                                
                 clear_screen();
                 
 				scene.add( particlesGroup );
 				particlesGroup.name = "particles_group";
-				particlesGroup.scale.set( particleControls.size, particleControls.size, particleControls.size );
+				particlesGroup.scale.set( modelControls.modelSize, modelControls.modelSize, modelControls.modelSize );
 			}
-            
-            placeParticles();
             
             //Loop to position particles using low render spec
 			var placeParticlesLowRender = function( ){
 				
                 //Double of particles used in the other simulation
-                var particles = particleControls.particlesNumber * 2;
+                var particles = particleControls.particlesNumber;
                 var geometry = new THREE.BufferGeometry();
                 var positions = [];
 				var colors = [];
@@ -334,18 +346,16 @@
                 scene.add( points );
                 points.name = "particles_low_render_group"
 			}
-
             
-			c_mesh_particlesNumber.onChange(function( ){
-				placeParticles( );
-			});
+            placeParticlesLowRender();
 
-			c_mesh_size.onChange(function( ){
-				placeParticles( );
+            //Particle functions
+			c_mesh_particlesNumber.onChange(function( ){
+				placeParticlesLowRender( );
 			});
 			
 			c_mesh_particleSize.onChange(function( ){
-				placeParticles( );
+				placeParticlesLowRender( );
 			});
             
             c_mesh_psiMax.onChange(function( ){
@@ -359,19 +369,15 @@
 			});
 
 			c_mesh_scaleColor.onChange(function( ){
-				placeParticles( );
+				placeParticlesLowRender( );
 			});
+            
+            //Time functions
 
 			c_mesh_timeStep.onChange(function( ){
 				placeParticlesLowRender( );
+                //placeParticles();
 			});
-			
-			c_mesh_particlesWireframed.onChange(function( ){
-				placeParticles( );
-			});
-
-			//Enables the optimization while playing animation mode
-			//render_reduction = false;
 			
 			c_mesh_playForward.onChange(function( ){
 				particleControls.playBackward = false;
@@ -380,7 +386,24 @@
 			c_mesh_playBackward.onChange(function( ){
 				particleControls.playForward = false;
 			});
-                        
+            
+            //Model functions
+            
+            c_mesh_objectsNumber.onChange(function( ){
+				placeParticles( );
+			});  
+            
+            c_mesh_objectSize.onChange(function( ){
+                placeParticles( );
+            });
+            
+            c_mesh_modelSize.onChange(function( ){
+                placeParticles( );
+            });
+            
+            c_mesh_particlesWireframed.onChange(function( ){
+				placeParticles( );
+			});
 
 			c_mesh_cubeEdit.onChange(function( ){
 				var cube = scene.getObjectByName("wired_cube");
@@ -390,7 +413,7 @@
 			c_mesh_bkgColor.onChange(function( ){
 				scene.background = new THREE.Color( particleControls.bkgColor );
 			});
-
+            
 
 			var update = function( )
 			{
@@ -408,7 +431,8 @@
 						particleControls.timeStep = 0;
 					else
 						particleControls.timeStep += 1;
-					placeParticlesLowRender( );
+                    placeParticlesLowRender( );
+					//placeParticles( );
 				}
 				
 				//Steps backward 
@@ -419,6 +443,7 @@
 					else
 						particleControls.timeStep -= 1;
 					placeParticlesLowRender( );
+                    //placeParticles( );
 				}
 					
 			}
