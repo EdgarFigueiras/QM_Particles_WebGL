@@ -14,9 +14,10 @@ Matrix structure: **matrix[timeSteps][ParticlesNumber][x,y,z,psiValue]**
 2. Composition size
 3. Particle size
 4. Color scale
-5. Material of the particles
+5. 3D Model
 6. Time step of the simulation
 7. Box of environment
 8. Background color
+9. Export 3D Model
 
-Actual version 2.2
+Actual version 2.3

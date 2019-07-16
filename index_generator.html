@@ -30,9 +30,11 @@
     <script src="js/GLTFLoader.js"></script>
 	<script src="js/dat.gui.min.js"></script>
 	<script src="js/stats.min.js"></script>
-	
+    
 	<script src="js/d3.js"></script>
-	
+    
+    <script src="js/exporters/GLTFExporter.js"></script>
+    <script src="js/exporters/OBJExporter.js"></script>
 	
 	<header id="header">
 		<h2><strong>QM Particles simulation with WebGL using the Three.js library</strong></h2>
@@ -46,7 +48,7 @@
 
 	
     <script>
-	
+        
 		var dataName;
 		function handleFileSelect(evt) {
 			var files = evt.target.files; // FileList object
@@ -137,6 +139,51 @@
                 }
             }
             
+            //Saving functions for the exportGLTF method
+            var link = document.createElement( 'a' );
+			link.style.display = 'none';
+			document.body.appendChild( link ); // Firefox workaround
+            
+            function save( blob, filename ) {
+				link.href = URL.createObjectURL( blob );
+				link.download = filename;
+				link.click();
+				// URL.revokeObjectURL( url ); breaks Firefox...
+			}
+            
+            function saveString( text, filename ) {
+				save( new Blob( [ text ], { type: 'text/plain' } ), filename );
+			}
+            
+            //Function for export models using GLTF 
+            function exportGLTF( input ) {
+				var gltfExporter = new THREE.GLTFExporter();
+				var options = {
+				};
+				gltfExporter.parse( input, function ( result ) {
+					if ( result instanceof ArrayBuffer ) {
+						saveArrayBuffer( result, 'scene.glb' );
+					} else {
+						var output = JSON.stringify( result, null, 2 );
+						console.log( output );
+						saveString( output, exporterControls.fileName );
+					}
+				}, options );
+			}
+            
+            
+            //Function for export models using .OBJ 
+            function exportToObj(scene) {
+
+				var exporter = new THREE.OBJExporter();
+				var result = exporter.parse( scene );
+                var output = JSON.stringify( result, null, 2 );
+                console.log( output );
+                saveString( output, 'scene.obj' );
+			}
+
+
+            
 			//GUI
             //Particle variables
 			var particleControls = {
@@ -161,13 +208,24 @@
                 modelSize: 1,
                 particlesWireframed: false
             }
+            
+            //Exporter controls
+            var exporterControls = {
+                fileName: '3DModel.gltf',
+                Export3DModel: function() 
+                { 
+                    placeParticles();
+                    exportGLTF(scene);
+                    //exportToObj(scene);
+                }
+            }
 			
 			//Particles GUI creation
 			var gui = new dat.GUI();
 			var particlesGUI = gui.addFolder("Particles");
 			//var c_mesh_particlesNumber = gui.add(particleControls, 'particlesNumber', 10, arrayData[0].length);
 			var c_mesh_particlesNumber = particlesGUI.add(particleControls, 'particlesNumber', 10, arrayData[0].length);
-			var c_mesh_particleSize = particlesGUI.add(particleControls, 'particleSize', 0.01, 0.5);
+			var c_mesh_particleSize = particlesGUI.add(particleControls, 'particleSize', 0.01, 1);
 			var c_mesh_scaleColor = particlesGUI.add(particleControls, 'scaleColor', 0, 2);
             var c_mesh_psiMax = particlesGUI.add(particleControls, 'psiMax', 0, psiMaxValue);
             var c_mesh_psiMin = particlesGUI.add(particleControls, 'psiMin', 0, psiMaxValue);
@@ -191,17 +249,27 @@
 			var geometry = new THREE.BoxGeometry( 1, 1, 1);
 			var material = new THREE.MeshBasicMaterial( { color: 0xFFFFFF, wireframe: true} );
 			var cube = new THREE.Mesh( geometry, material );
-			cube.name = "wired_cube";
-			cube.scale.set( particleControls.cubeSize, particleControls.cubeSize, particleControls.cubeSize );
-			scene.add( cube );
+			cube.name = "cube";
+            //Removing the diagonal face lines
+            var geo = new THREE.EdgesGeometry( cube.geometry ); // 
+            var mat = new THREE.LineBasicMaterial( { color: 0xffffff, linewidth: 2 } );
+            var cubeWireframe = new THREE.LineSegments( geo, mat );
+            cubeWireframe.scale.set( particleControls.cubeSize, particleControls.cubeSize, particleControls.cubeSize );
+            cubeWireframe.name = "wired_cube";
+			scene.add( cubeWireframe );
+            
 			//Cube add to GUI
 			var cubeGUI = gui.addFolder("Cube");
-			var c_mesh_cubeEdit = cubeGUI.add(particleControls, 'cubeSize', 0, 300);
-			
+			var c_mesh_cubeEdit = cubeGUI.add(particleControls, 'cubeSize', 0, 300);	
 			
 			//Background GUI
 			var bkgGUI = gui.addFolder("Background");
 			var c_mesh_bkgColor = bkgGUI.addColor(particleControls, "bkgColor");
+            
+            //Exporter GUI
+            var exporterGUI = gui.addFolder("Model exporter");
+            exporterGUI.add(exporterControls, 'fileName');
+            exporterGUI.add(exporterControls, "Export3DModel");
             
 			
             
