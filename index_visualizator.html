@@ -1,0 +1,381 @@
+<html>
+<head>
+	<meta charset="UTF-8">
+    <title>Threejs Model Loader</title>
+
+    <style>
+    	body{
+    		margin: 0;
+    		overflow: hidden;
+			background-color: black;
+    	}
+		
+		header {
+			font-family: verdana;
+			background-color: #666;
+			padding: 30px;
+			text-align: center;
+			font-size: 35px;
+			color: white;
+		}
+        
+        /* Allows the GUI to expand more to show the stats panels*/
+        .dg li.gui-stats:not(.folder) {
+            height: auto;
+        }
+		
+    </style>
+
+</head>
+<body>
+    <canvas id="myCanvas"></canvas>
+
+    <script src="js/three.js"></script>
+	<script src="js/OrbitControls.js"></script>
+    <script src="js/GLTFLoader.js"></script>
+	<script src="js/dat.gui.min.js"></script>
+	<script src="js/stats.min.js"></script>
+    
+	<script src="js/d3.js"></script>
+    
+    <script src="js/GLTFExporter.js"></script>
+    <script src="js/exporters/OBJExporter.js"></script>
+    
+    <script src="js/stats.min.js"></script>
+    
+	<header id="header">
+        <h2><strong>QM Particles simulation with WebGL using the Three.js library</strong></h2>
+        <h4>Select the 3D model (.gltf)</h4>
+        <input type="file" id="fileInput" name="files[]"  />
+        <output id="list"></output>
+		<div id="loading" style="visibility: hidden" >
+		  <h5>Loading...</h5>
+		</div>
+	</header>
+    
+    <script>
+        
+		var dataName;
+		function handleFileSelect(evt) {
+			var files = evt.target.files; // FileList object
+
+			// files is a FileList of File objects. List some properties.
+			var output = [];
+			for (var i = 0, f; f = files[i]; i++) {
+				output.push("<strong> File: &nbsp </strong>", escape(f.name), " &nbsp<strong> Size:&nbsp </strong>" , Math.round (f.size / (1024 * 1024)), "&nbsp Mb");
+				dataName = f.name;
+			}
+			document.getElementById('loading').style = "visibility: visible";
+			document.getElementById('list').innerHTML = '<ul>' + output.join('') + '</ul>';
+            createParticles();
+		}
+		document.getElementById('fileInput').addEventListener('change', handleFileSelect, false);
+		
+
+
+		//Data render
+		let createParticles = function( ){
+			//Renderer creation
+			var renderer,
+				myCanvas = document.getElementById('myCanvas');
+
+			renderer = new THREE.WebGLRenderer({
+			  canvas: myCanvas, 
+			  antialias: true
+			});
+			renderer.setClearColor(0x000000);
+			renderer.setPixelRatio(window.devicePixelRatio);
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			
+			document.body.appendChild( renderer.domElement );
+
+			
+			//Window resizing responsive
+			window.addEventListener( 'resize', function()
+			{
+				var width = window.innerWidth;
+				var height = window.innerHeight;
+				renderer.setSize( width, height);
+				camera.aspect = width / height;
+				camera.updateProjectionMatrix( );
+			} )
+			
+			
+			//Scene
+			var scene = new THREE.Scene();
+            
+            const loader = new THREE.GLTFLoader();
+            // Load a glTF resource
+            loader.load(
+                // resource URL
+                './model3d/'.concat( dataName ),
+                // called when the resource is loaded
+                function ( gltf ) {
+
+                    scene.add( gltf.scene );
+
+                },
+                // called while loading is progressing
+                function ( xhr ) {
+
+                    console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+
+                },
+                // called when loading has errors
+                function ( error ) {
+
+                    console.log( 'An error happened' );
+
+                }
+            );
+            
+            //Display the scene
+            document.getElementById('header').style.display = "none";
+
+			//Camera
+			var camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 1000 );
+			camera.position.set( 0, 0, 100 );
+			
+			//Controls
+			var Controls = new THREE.OrbitControls( camera, renderer.domElement );
+			
+			//Ligts
+            //Ambient light 
+            //This light globally illuminates all objects in the scene equally.
+			var light = new THREE.AmbientLight(0xffffff, 1);
+			scene.add(light);
+
+			var light2 = new THREE.AmbientLight(0xffffff, 0.0);
+			scene.add(light2);
+            
+            
+            
+            //Saving functions for the exportGLTF method
+            var link = document.createElement( 'a' );
+			link.style.display = 'none';
+			document.body.appendChild( link ); // Firefox workaround
+            
+            function save( blob, filename ) {
+				link.href = URL.createObjectURL( blob );
+				link.download = filename;
+				link.click();
+				// URL.revokeObjectURL( url ); breaks Firefox...
+			}
+            
+            function saveString( text, filename ) {
+				save( new Blob( [ text ], { type: 'text/plain' } ), filename );
+			}
+            
+            //Function for export models using GLTF 
+            function exportGLTF( input ) {
+				var gltfExporter = new THREE.GLTFExporter();
+				var options = {
+				};
+				gltfExporter.parse( input, function ( result ) {
+					if ( result instanceof ArrayBuffer ) {
+						saveArrayBuffer( result, 'scene.glb' );
+					} else {
+						var output = JSON.stringify( result, null, 2 );
+						console.log( output );
+						saveString( output, exporterControls.fileName );
+					}
+				}, options );
+			}
+            
+            
+            //Function for export models using .OBJ 
+            function exportToObj(scene) {
+
+				var exporter = new THREE.OBJExporter();
+				var result = exporter.parse( scene );
+                var output = JSON.stringify( result, null, 2 );
+                console.log( output );
+                saveString( output, 'scene.obj' );
+			}
+
+
+            
+			//GUI
+            //Light variables
+            var lightControls = {
+                enableLight1: true,
+                intensityLight1: 1,
+                colorLight1: "#FFFFFF",
+                enableLight2: false,
+                intensityLight2: 1,
+                colorLight2: "#FFFFFF",
+            }
+            
+            
+            //Particle variables
+			var particleControls = {
+                enableCube: false,
+                cubeColor: "#FFFFFF",
+                cubeHeight: 30,
+                cubeWidth: 30,
+                cubeLenght: 30,
+                cubeEscale: 10,
+				bkgColor: "#000000",
+			}
+            
+			
+            //GUI
+            var gui = new dat.GUI();
+            gui.remember(lightControls, particleControls);
+            
+            //Cube add to GUI
+			var lightGUI = gui.addFolder("Lights");
+            var c_mesh_enableLight1 = lightGUI.add(lightControls, 'enableLight1').listen();
+            var c_mesh_intensityLight1 = lightGUI.add(lightControls, 'intensityLight1', 0, 1);
+            
+            lightGUI.addColor(lightControls, 'colorLight1').onChange(function (e) {
+                light.color = new THREE.Color(e);
+            });
+            
+            var c_mesh_enableLight2 = lightGUI.add(lightControls, 'enableLight2').listen();
+            var c_mesh_intensityLight2 = lightGUI.add(lightControls, 'intensityLight2', 0, 1);
+            
+            lightGUI.addColor(lightControls, 'colorLight2').onChange(function (e) {
+                light2.color = new THREE.Color(e);
+            });
+            
+			//Cube GUI
+			//Box geometry creation
+			var geometry = new THREE.BoxGeometry( 1, 1, 1);
+			var material = new THREE.MeshBasicMaterial( { color: 0xFFFFFF, wireframe: true} );
+			var cube = new THREE.Mesh( geometry, material );
+			cube.name = "cube";
+            //Removing the diagonal face lines
+            var geo = new THREE.EdgesGeometry( cube.geometry ); // 
+            var mat = new THREE.LineBasicMaterial( { color: 0xffffff, linewidth: 2 } );
+            var cubeWireframe = new THREE.LineSegments( geo, mat );
+            cubeWireframe.scale.set( particleControls.cubeWidth, particleControls.cubeHeight, particleControls.cubeLenght);
+            cubeWireframe.name = "wired_cube";
+			//scene.add( cubeWireframe );
+            
+            
+			//Cube add to GUI
+			var cubeGUI = gui.addFolder("Cube");
+            var c_mesh_enableCube = cubeGUI.add(particleControls, 'enableCube').listen();
+            var c_mesh_cubeColor = cubeGUI.addColor(particleControls, "cubeColor");
+            var c_mesh_cubeEditHeight = cubeGUI.add(particleControls, 'cubeHeight', 0, 300);
+            var c_mesh_cubeEditWidth = cubeGUI.add(particleControls, 'cubeWidth', 0, 300);
+            var c_mesh_cubeEditLength = cubeGUI.add(particleControls, 'cubeLenght', 0, 300);
+            var c_mesh_cubeEditEscale = cubeGUI.add(particleControls, 'cubeEscale', 0, 300);
+            
+			//Background GUI
+			var bkgGUI = gui.addFolder("Background");
+			var c_mesh_bkgColor = bkgGUI.addColor(particleControls, "bkgColor");
+            
+			//Stats module 
+            var stats = new Stats();
+            stats.dom.height = '48px';
+            [].forEach.call(stats.dom.children, (child) => (child.style.display = ''));
+            
+            //Stats GUI
+            var statsGUI = gui.addFolder("Performance");
+            const perfLi = document.createElement('li');
+            stats.dom.style.position = 'static';
+            perfLi.appendChild(stats.dom);
+            perfLi.classList.add('gui-stats');
+            statsGUI.__ul.appendChild( perfLi );
+            
+            
+			
+			
+            //Light functions
+            c_mesh_enableLight1.onChange(function( ){
+                if (lightControls.enableLight1)
+                {
+                    light.intensity = 1.0;
+                } else {
+                    light.intensity = 0.0;
+                }
+            });
+            
+            c_mesh_intensityLight1.onChange(function( ){
+                light.intensity = lightControls.intensityLight1;
+            });
+
+            c_mesh_enableLight2.onChange(function( ){
+                if (lightControls.enableLight2)
+                {
+                    light2.intensity = 1.0;
+                } else {
+                    light2.intensity = 0.0;
+                }
+            });
+            
+            c_mesh_intensityLight2.onChange(function( ){
+                light2.intensity = lightControls.intensityLight2;
+            });
+            
+            //Cube functions
+            c_mesh_enableCube.onChange(function( ){
+                if (particleControls.enableCube)
+                {
+                    scene.add( cubeWireframe );
+                } else {
+                    scene.remove( cubeWireframe ); 
+                }
+            });
+            
+           c_mesh_cubeColor.onChange(function( ){
+                var cubeWired = scene.getObjectByName("wired_cube");
+				scene.remove( cubeWired );
+                var mat = new THREE.LineBasicMaterial( { color: particleControls.cubeColor, linewidth: 2 } );
+                cubeWireframe = new THREE.LineSegments( geo, mat );
+                cubeWireframe.scale.set(  particleControls.cubeWidth + particleControls.cubeEscale, particleControls.cubeHeight + particleControls.cubeEscale, particleControls.cubeLenght + particleControls.cubeEscale );
+                cubeWireframe.name = "wired_cube";
+                scene.add( cubeWireframe );
+			});
+            
+            c_mesh_cubeEditHeight.onChange(function( ){
+                var cube = scene.getObjectByName("wired_cube");
+                cube.scale.set(  particleControls.cubeWidth + particleControls.cubeEscale, particleControls.cubeHeight + particleControls.cubeEscale, particleControls.cubeLenght + particleControls.cubeEscale );
+            });
+            
+            c_mesh_cubeEditWidth.onChange(function( ){
+                var cube = scene.getObjectByName("wired_cube");
+                cube.scale.set(  particleControls.cubeWidth + particleControls.cubeEscale, particleControls.cubeHeight + particleControls.cubeEscale, particleControls.cubeLenght + particleControls.cubeEscale );
+            });
+            
+            c_mesh_cubeEditLength.onChange(function( ){
+                var cube = scene.getObjectByName("wired_cube");
+                cube.scale.set(  particleControls.cubeWidth + particleControls.cubeEscale, particleControls.cubeHeight + particleControls.cubeEscale, particleControls.cubeLenght + particleControls.cubeEscale );
+            });
+            
+            c_mesh_cubeEditEscale.onChange(function( ){
+				var cube = scene.getObjectByName("wired_cube");
+				cube.scale.set(  particleControls.cubeWidth + particleControls.cubeEscale, particleControls.cubeHeight + particleControls.cubeEscale, particleControls.cubeLenght + particleControls.cubeEscale );
+			});
+			
+			c_mesh_bkgColor.onChange(function( ){
+				scene.background = new THREE.Color( particleControls.bkgColor );
+			});
+
+			var update = function( )
+			{
+			
+			}
+			
+			var render = function( )
+			{
+				renderer.render( scene, camera );
+					
+			}
+			
+			var RenderLoop = function( )
+			{
+				requestAnimationFrame( RenderLoop );
+                
+				stats.update();
+				update( );
+				render( );
+			}
+			
+			RenderLoop( );
+		}
+    </script>
+</body>
+</html>
