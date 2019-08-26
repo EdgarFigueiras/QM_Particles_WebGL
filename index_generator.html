@@ -18,6 +18,11 @@
 			font-size: 35px;
 			color: white;
 		}
+        
+        /* Allows the GUI to expand more to show the stats panels*/
+        .dg li.gui-stats:not(.folder) {
+            height: auto;
+        }
 		
     </style>
 
@@ -33,8 +38,10 @@
     
 	<script src="js/d3.js"></script>
     
-    <script src="js/exporters/GLTFExporter.js"></script>
-    <script src="js/OBJExporter.js"></script>
+    <script src="js/GLTFExporter.js"></script>
+    <script src="js/exporters/OBJExporter.js"></script>
+    
+    <script src="js/stats.min.js"></script>
 	
 	<header id="header">
 		<h2><strong>QM Particles simulation with WebGL using the Three.js library</strong></h2>
@@ -47,8 +54,7 @@
 	</header>
 
 	
-    <script>
-        
+    <script>        
 		var dataName;
 		function handleFileSelect(evt) {
 			var files = evt.target.files; // FileList object
@@ -61,7 +67,7 @@
 			}
 			document.getElementById('loading').style = "visibility: visible";
 			document.getElementById('list').innerHTML = '<ul>' + output.join('') + '</ul>';
-		dataLoad();
+            dataLoad();
 		}
 		document.getElementById('files').addEventListener('change', handleFileSelect, false);
 		
@@ -191,10 +197,14 @@
 				particleSize: 0.2,
 				scaleColor: 1.0,
 				timeStep: 0,
-				particlesWireframed: false,
 				playForward: false,
 				playBackward: false,
-				cubeSize: 50,
+                enableCube: true,
+                cubeColor: "#FFFFFF",
+                cubeHeight: 30,
+                cubeWidth: 30,
+                cubeLenght: 30,
+                cubeEscale: 10,
 				bkgColor: "#000000",
                 psiMax: psiMaxValue,
                 psiMin: 0
@@ -222,6 +232,8 @@
 			
 			//Particles GUI creation
 			var gui = new dat.GUI();
+            gui.remember(particleControls, modelControls);
+            
 			var particlesGUI = gui.addFolder("Particles");
 			//var c_mesh_particlesNumber = gui.add(particleControls, 'particlesNumber', 10, arrayData[0].length);
 			var c_mesh_particlesNumber = particlesGUI.add(particleControls, 'particlesNumber', 10, arrayData[0].length);
@@ -254,13 +266,18 @@
             var geo = new THREE.EdgesGeometry( cube.geometry ); // 
             var mat = new THREE.LineBasicMaterial( { color: 0xffffff, linewidth: 2 } );
             var cubeWireframe = new THREE.LineSegments( geo, mat );
-            cubeWireframe.scale.set( particleControls.cubeSize, particleControls.cubeSize, particleControls.cubeSize );
+            cubeWireframe.scale.set( particleControls.cubeWidth, particleControls.cubeHeight, particleControls.cubeLenght);
             cubeWireframe.name = "wired_cube";
 			scene.add( cubeWireframe );
             
 			//Cube add to GUI
 			var cubeGUI = gui.addFolder("Cube");
-			var c_mesh_cubeEdit = cubeGUI.add(particleControls, 'cubeSize', 0, 300);	
+            var c_mesh_enableCube = cubeGUI.add(particleControls, 'enableCube').listen();
+            var c_mesh_cubeColor = cubeGUI.addColor(particleControls, "cubeColor");
+            var c_mesh_cubeEditHeight = cubeGUI.add(particleControls, 'cubeHeight', 0, 300);
+            var c_mesh_cubeEditWidth = cubeGUI.add(particleControls, 'cubeWidth', 0, 300);
+            var c_mesh_cubeEditLength = cubeGUI.add(particleControls, 'cubeLenght', 0, 300);
+            var c_mesh_cubeEditEscale = cubeGUI.add(particleControls, 'cubeEscale', 0, 300);
 			
 			//Background GUI
 			var bkgGUI = gui.addFolder("Background");
@@ -271,7 +288,19 @@
             exporterGUI.add(exporterControls, 'fileName');
             exporterGUI.add(exporterControls, "Export3DModel");
             
-			
+			//Stats module 
+            var stats = new Stats();
+            stats.dom.height = '48px';
+            [].forEach.call(stats.dom.children, (child) => (child.style.display = ''));
+            
+            //Stats GUI
+            var statsGUI = gui.addFolder("Performance");
+            const perfLi = document.createElement('li');
+            stats.dom.style.position = 'static';
+            perfLi.appendChild(stats.dom);
+            perfLi.classList.add('gui-stats');
+            statsGUI.__ul.appendChild( perfLi );
+            
             
             //Color functions with gradation
 			//Color Scale From deep blue (min psi) to deep red (max psi)
@@ -341,9 +370,11 @@
                 //Clear the Scene
 				var selectParticlesGroup = scene.getObjectByName("particles_group");
 				scene.remove( selectParticlesGroup );
+                scene.dispose( selectParticlesGroup );
                 //Clear the scene if low render mode was used
                 var selectParticlesGroupLowRender = scene.getObjectByName("particles_low_render_group");
 				scene.remove( selectParticlesGroupLowRender );
+                scene.dispose( selectParticlesGroupLowRender );
             }
 			
 			//Loop to position particles
@@ -416,6 +447,7 @@
 			}
             
             placeParticlesLowRender();
+            //placeParticles();
 
             //Particle functions
 			c_mesh_particlesNumber.onChange(function( ){
@@ -428,12 +460,10 @@
             
             c_mesh_psiMax.onChange(function( ){
                 placeParticlesLowRender( );
-				//placeParticles( );
 			});
             
             c_mesh_psiMin.onChange(function( ){
                 placeParticlesLowRender( );
-				//placeParticles( );
 			});
 
 			c_mesh_scaleColor.onChange(function( ){
@@ -441,7 +471,6 @@
 			});
             
             //Time functions
-
 			c_mesh_timeStep.onChange(function( ){
 				placeParticlesLowRender( );
                 //placeParticles();
@@ -455,8 +484,8 @@
 				particleControls.playForward = false;
 			});
             
-            //Model functions
             
+            //Model functions
             c_mesh_objectsNumber.onChange(function( ){
 				placeParticles( );
 			});  
@@ -473,15 +502,49 @@
 				placeParticles( );
 			});
 
-			c_mesh_cubeEdit.onChange(function( ){
+            //Cube functions
+            c_mesh_enableCube.onChange(function( ){
+                if (particleControls.enableCube)
+                {
+                    scene.add( cubeWireframe );
+                } else {
+                    scene.remove( cubeWireframe );   
+                }
+            });
+            
+            c_mesh_cubeColor.onChange(function( ){
+                var cubeWired = scene.getObjectByName("wired_cube");
+				scene.remove( cubeWired );
+                var mat = new THREE.LineBasicMaterial( { color: particleControls.cubeColor, linewidth: 2 } );
+                cubeWireframe = new THREE.LineSegments( geo, mat );
+                cubeWireframe.scale.set(  particleControls.cubeWidth + particleControls.cubeEscale, particleControls.cubeHeight + particleControls.cubeEscale, particleControls.cubeLenght + particleControls.cubeEscale );
+                cubeWireframe.name = "wired_cube";
+                scene.add( cubeWireframe );
+			});
+            
+            c_mesh_cubeEditHeight.onChange(function( ){
+                var cube = scene.getObjectByName("wired_cube");
+                cube.scale.set(  particleControls.cubeWidth + particleControls.cubeEscale, particleControls.cubeHeight + particleControls.cubeEscale, particleControls.cubeLenght + particleControls.cubeEscale );
+            });
+            
+            c_mesh_cubeEditWidth.onChange(function( ){
+                var cube = scene.getObjectByName("wired_cube");
+                cube.scale.set(  particleControls.cubeWidth + particleControls.cubeEscale, particleControls.cubeHeight + particleControls.cubeEscale, particleControls.cubeLenght + particleControls.cubeEscale );
+            });
+            
+            c_mesh_cubeEditLength.onChange(function( ){
+                var cube = scene.getObjectByName("wired_cube");
+                cube.scale.set(  particleControls.cubeWidth + particleControls.cubeEscale, particleControls.cubeHeight + particleControls.cubeEscale, particleControls.cubeLenght + particleControls.cubeEscale );
+            });
+            
+            c_mesh_cubeEditEscale.onChange(function( ){
 				var cube = scene.getObjectByName("wired_cube");
-				cube.scale.set( particleControls.cubeSize, particleControls.cubeSize, particleControls.cubeSize );
+				cube.scale.set(  particleControls.cubeWidth + particleControls.cubeEscale, particleControls.cubeHeight + particleControls.cubeEscale, particleControls.cubeLenght + particleControls.cubeEscale );
 			});
 			
 			c_mesh_bkgColor.onChange(function( ){
 				scene.background = new THREE.Color( particleControls.bkgColor );
 			});
-            
 
 			var update = function( )
 			{
@@ -519,7 +582,8 @@
 			var RenderLoop = function( )
 			{
 				requestAnimationFrame( RenderLoop );
-				
+                
+				stats.update();
 				update( );
 				render( );
 			}
