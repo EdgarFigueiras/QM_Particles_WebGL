@@ -45,7 +45,8 @@
 	
 	<header id="header">
 		<h2><strong>QM Particles simulation with WebGL using the Three.js library</strong></h2>
-		<h4>Select the data file</h4>
+        <p> <font size="5"> Antialiasing </font> <font size="1"> (Disable for better performance) </font> <input id="antialiasCheckbox" type="checkbox" name="AntialiasingCheckbox" >  </p>
+		<p> <font size="5"> Select the data file </font> </p>
 		<input type="file" id="files" name="files[]"  />
 		<output id="list"></output>
 		<div id="loading" style="visibility: hidden" >
@@ -97,10 +98,17 @@
 			var renderer,
 				myCanvas = document.getElementById('myCanvas');
 
+            var antialiasValue = false;
+            if (document.getElementById('antialiasCheckbox').checked)
+            {
+               antialiasValue = true;     
+            } 
+            
 			renderer = new THREE.WebGLRenderer({
 			  canvas: myCanvas, 
-			  antialias: true
+			  antialias: antialiasValue 
 			});
+            
 			renderer.setClearColor(0x000000);
 			renderer.setPixelRatio(window.devicePixelRatio);
 			renderer.setSize(window.innerWidth, window.innerHeight);
