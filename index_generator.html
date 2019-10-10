@@ -10,7 +10,7 @@
 			background-color: black;
     	}
 		
-		header {
+		header{
 			font-family: verdana;
 			background-color: #666;
 			padding: 30px;
@@ -19,16 +19,43 @@
 			color: white;
 		}
         
+        .imageLoad{  
+            height:0px;
+            margin-left: auto;
+            margin-right: auto;
+            margin-top: -15px; 
+        }
+        
+        .loadGIF{
+            margin-top: -20px;
+            left: 0px;
+            width: 280px; 
+            height 280px;
+        }
+        
+        .renderDiv{
+            position:absolute;
+            font-family: verdana;
+            text-align: center;
+			font-size: 17px;
+			color: white;
+            visibility: hidden;
+        }
+        
         /* Allows the GUI to expand more to show the stats panels*/
-        .dg li.gui-stats:not(.folder) {
+        .dg li.gui-stats:not(.folder){
             height: auto;
         }
 		
     </style>
 
+    <div class='renderDiv' id="rendering">
+         <span id="top">Capturing...</span>
+    </div>
 </head>
 <body>
-    <canvas id="myCanvas"></canvas>
+    
+    <canvas id="canvas"></canvas>
 
     <script src="js/three.js"></script>
 	<script src="js/OrbitControls.js"></script>
@@ -39,21 +66,21 @@
 	<script src="js/d3.js"></script>
     
     <script src="js/GLTFExporter.js"></script>
-    <script src="js/exporters/OBJExporter.js"></script>
     
     <script src="js/stats.min.js"></script>
-	
+    
+    <script src="js/CCapture.all.min.js"></script>
+    
 	<header id="header">
 		<h2><strong>QM Particles simulation with WebGL using the Three.js library</strong></h2>
         <p> <font size="5"> Antialiasing </font> <font size="1"> (Keep disabled for better performance) </font> <input id="antialiasCheckbox" type="checkbox" name="AntialiasingCheckbox" >  </p>
 		<p> <font size="5"> Select the data file </font> </p>
 		<input type="file" id="files" name="files[]"  />
 		<output id="list"></output>
-		<div id="loading" style="visibility: hidden" >
-		  <h5>Loading...</h5>
-		</div>
-	</header>
-
+        <div id="loading" style="visibility: hidden" class="imageLoad">
+            <img src="img/loading.gif" class="loadGIF"> 
+        </div>
+    </header>
 	
     <script>        
 		var dataName;
@@ -95,7 +122,7 @@
 	
 			//Renderer creation
 			var renderer,
-				myCanvas = document.getElementById('myCanvas');
+				canvas = document.getElementById('canvas');
 
             var antialiasValue = false;
             if (document.getElementById('antialiasCheckbox').checked)
@@ -104,7 +131,7 @@
             } 
             
 			renderer = new THREE.WebGLRenderer({
-			  canvas: myCanvas, 
+			  canvas: canvas, 
 			  antialias: antialiasValue 
 			});
             
@@ -137,11 +164,15 @@
 			var Controls = new THREE.OrbitControls( camera, renderer.domElement );
 			
 			//Ligts
-			var light = new THREE.AmbientLight(0xffffff, 0.5);
+			var light = new THREE.AmbientLight(0xffffff, 0.75);
 			scene.add(light);
 
-			var light2 = new THREE.PointLight(0xffffff, 0.5);
+			var light2 = new THREE.AmbientLight(0xffffff, 0.5);
 			scene.add(light2);
+            
+            var light3 = new THREE.PointLight( 0xffffff, 1, 100 );
+            light3.position.set( 50, 50, 50 );
+            scene.add( light3 ); 
 		
             var psiMaxValue = 1;
             //Load PSI data to set the max value
@@ -155,13 +186,13 @@
             //Saving functions for the exportGLTF method
             var link = document.createElement( 'a' );
 			link.style.display = 'none';
-			document.body.appendChild( link ); // Firefox workaround
+			document.body.appendChild( link ); // Avoid Firefox problem
             
             function save( blob, filename ) {
 				link.href = URL.createObjectURL( blob );
 				link.download = filename;
 				link.click();
-				// URL.revokeObjectURL( url ); breaks Firefox...
+				// URL.revokeObjectURL( url ); Firefox problem
 			}
             
             function saveString( text, filename ) {
@@ -184,18 +215,6 @@
 				}, options );
 			}
             
-            
-            //Function for export models using .OBJ 
-            function exportToObj(scene) {
-
-				var exporter = new THREE.OBJExporter();
-				var result = exporter.parse( scene );
-                var output = JSON.stringify( result, null, 2 );
-                console.log( output );
-                saveString( output, 'scene.obj' );
-			}
-
-
             
 			//GUI
             //Particle variables
@@ -237,7 +256,7 @@
                     //exportToObj(scene);
                 }
             }
-			
+            
 			//Particles GUI creation
 			var gui = new dat.GUI();
             gui.remember(particleControls, modelControls);
@@ -291,6 +310,41 @@
 			//Background GUI
 			var bkgGUI = gui.addFolder("Background");
 			var c_mesh_bkgColor = bkgGUI.addColor(particleControls, "bkgColor");
+            
+            
+            var renderControls = {
+                getImage: false,
+                renderName: 'render',
+                numberImageSaved: 0
+            }
+            
+            var capturer = new CCapture( {
+                framerate: 60,
+                format: 'png',
+                verbose: true,
+                name: renderControls.renderName
+            } );
+            
+             //Render variables
+            var renderFunctions = {
+                renderCapture: function() {
+                        renderControls.getImage = true;
+                        capturer.start();
+                        document.getElementById('rendering').style = "visibility: visible";
+                    },
+                saveRender: function() {
+                    capturer.stop();
+                    capturer.save();
+                    renderControls.getImage = false;
+                    document.getElementById('rendering').style = "visibility: hidden";
+                }
+            }
+			
+            //Render GUI
+            var renderGUI = gui.addFolder("Image render");
+            renderGUI.add(renderControls, 'renderName');
+            renderGUI.add(renderFunctions, "renderCapture");
+            renderGUI.add(renderFunctions, "saveRender");
             
             //Exporter GUI
             var exporterGUI = gui.addFolder("Model exporter");
@@ -428,7 +482,6 @@
             //Loop to position particles using low render spec
 			var placeParticlesLowRender = function( ){
 				
-                //Double of particles used in the other simulation
                 var particles = particleControls.particlesNumber;
                 var geometry = new THREE.BufferGeometry();
                 var positions = [];
@@ -583,7 +636,6 @@
 					else
 						particleControls.timeStep += 1;
                     placeParticlesLowRender( );
-                    //setTimeout(placeParticlesLowRender, 2000);
 					//placeParticles( );
 				}
 				
@@ -597,19 +649,23 @@
 					placeParticlesLowRender( );
                     //placeParticles( );
 				}
-					
+                
 			}
 			
 			var RenderLoop = function( )
 			{
 				requestAnimationFrame( RenderLoop );
-                
-                stats.update();
-                update( );
-                render( );
+                stats.update(); /*FPS and MS/Frame counter*/
+                update( );      /*Updates if are changes*/
+                render( );      /*Renders the visualization*/
+                if(renderControls.getImage) /*Saves renders*/
+                {
+                    capturer.capture( canvas );
+                    renderControls.numberImageSaved += 1;
+                }
 			}
             
-            RenderLoop( );
+            RenderLoop( );      /*Infinite call function RenderLoop*/
 		}
     </script>
 </body>
