@@ -315,7 +315,10 @@
             var renderControls = {
                 getImage: false,
                 renderName: 'render',
-                numberImageSaved: 0
+                numberImageSaved: 0,
+                orbitalCamera: false,
+                orbitalSpeed: 25,
+                cameraZoom: 150
             }
             
             var capturer = new CCapture( {
@@ -324,6 +327,7 @@
                 verbose: true,
                 name: renderControls.renderName
             } );
+            
             
              //Render variables
             var renderFunctions = {
@@ -345,11 +349,15 @@
             renderGUI.add(renderControls, 'renderName');
             renderGUI.add(renderFunctions, "renderCapture");
             renderGUI.add(renderFunctions, "saveRender");
+            renderGUI.add(renderControls, "orbitalCamera");
+            renderGUI.add(renderControls, "orbitalSpeed", 1, 200);
+            renderGUI.add(renderControls, "cameraZoom", 1, 250);
             
             //Exporter GUI
             var exporterGUI = gui.addFolder("Model exporter");
             exporterGUI.add(exporterControls, 'fileName');
             exporterGUI.add(exporterControls, "Export3DModel");
+            
             
 			//Stats module 
             var stats = new Stats();
@@ -626,8 +634,17 @@
             
 			var render = function( )
 			{
+                //Orbital camera
+                if(renderControls.orbitalCamera)
+                {
+                    //Use the time as the step to animate
+                    var speed = Date.now() * 0.00001 * renderControls.orbitalSpeed;
+                    camera.position.x = Math.cos(speed) * (251 - renderControls.cameraZoom);
+                    camera.position.z = Math.sin(speed) * (251 - renderControls.cameraZoom);
+                    camera.lookAt(scene.position); 
+                }
+                
 				renderer.render( scene, camera );
-				
 				//Steps forward 
 				if(particleControls.playForward)
 				{
