@@ -2,52 +2,8 @@
 <head>
 	<meta charset="UTF-8">
     <title>Threejs Model Loader</title>
-
-    <style>
-    	body{
-    		margin: 0;
-    		overflow: hidden;
-			background-color: black;
-    	}
-		
-		header{
-			font-family: verdana;
-			background-color: #666;
-			padding: 30px;
-			text-align: center;
-			font-size: 35px;
-			color: white;
-		}
         
-        .imageLoad{  
-            height:0px;
-            margin-left: auto;
-            margin-right: auto;
-            margin-top: -15px; 
-        }
-        
-        .loadGIF{
-            margin-top: -20px;
-            left: 0px;
-            width: 280px; 
-            height 280px;
-        }
-        
-        .renderDiv{
-            position:absolute;
-            font-family: verdana;
-            text-align: center;
-			font-size: 17px;
-			color: white;
-            visibility: hidden;
-        }
-        
-        /* Allows the GUI to expand more to show the stats panels*/
-        .dg li.gui-stats:not(.folder){
-            height: auto;
-        }
-		
-    </style>
+     <link rel="stylesheet" type="text/css" href="styles.css">
 
     <div class='renderDiv' id="rendering">
          <span id="top">Capturing...</span>
@@ -56,7 +12,7 @@
 <body>
     
     <canvas id="canvas"></canvas>
-
+    
     <script src="js/three.js"></script>
 	<script src="js/OrbitControls.js"></script>
     <script src="js/GLTFLoader.js"></script>
@@ -119,10 +75,9 @@
 
 		//Data render
 		let createParticles = function( ){
-	
+            
 			//Renderer creation
-			var renderer,
-				canvas = document.getElementById('canvas');
+			var renderer, canvas = document.getElementById('canvas');
 
             var antialiasValue = false;
             if (document.getElementById('antialiasCheckbox').checked)
@@ -140,26 +95,37 @@
 			renderer.setSize(window.innerWidth, window.innerHeight);
 			
 			document.body.appendChild( renderer.domElement );
-
-			
-			//Window resizing responsive
-			window.addEventListener( 'resize', function()
-			{
-				var width = window.innerWidth;
-				var height = window.innerHeight;
-				renderer.setSize( width, height);
-				camera.aspect = width / height;
-				camera.updateProjectionMatrix( );
-			} )
-			
-			
+            
+			document.getElementById('canvas').style = "left:115px;"					
+            
 			//Scene
 			var scene = new THREE.Scene();
 
 			//Camera
 			var camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 1000 );
 			camera.position.set( 0, 0, 100 );
-			
+            
+
+            //Collapsing functions programed if an sidebar is added
+            //Sidebar collapse button 
+            /*
+            collapseButton.addEventListener("click", collapseFunction);
+            function collapseFunction() {
+                document.getElementById('sidebar').style = "width: 50px;";
+                document.getElementById('canvas').style = "left: 48px";
+                resizeCanvas();
+            } 
+
+            //Sidebar expand button 
+            expandButton.addEventListener("click", expandFunction);
+            function expandFunction() {
+                document.getElementById('sidebar').style = "width: 120px;";
+                document.getElementById('canvas').style = "left: 117px;";
+                resizeCanvas();
+            }  
+            */
+            
+            
 			//Controls
 			var Controls = new THREE.OrbitControls( camera, renderer.domElement );
 			
@@ -268,6 +234,7 @@
 			var c_mesh_scaleColor = particlesGUI.add(particleControls, 'scaleColor', 0, 2);
             var c_mesh_psiMax = particlesGUI.add(particleControls, 'psiMax', 0, psiMaxValue);
             var c_mesh_psiMin = particlesGUI.add(particleControls, 'psiMin', 0, psiMaxValue);
+            particlesGUI.open();
 
 			//Time steps GUI
 			var stepsGUI = gui.addFolder("Time Steps");
@@ -275,6 +242,7 @@
             var c_mesh_speedStep = stepsGUI.add(particleControls, 'speedStep', 0, 200).listen();
 			var c_mesh_playForward = stepsGUI.add(particleControls, 'playForward').listen();
 			var c_mesh_playBackward = stepsGUI.add(particleControls, 'playBackward').listen();
+            stepsGUI.open();
 
             //3D model GUI
             var modelGUI = gui.addFolder("3D Model");
@@ -301,11 +269,11 @@
 			//Cube add to GUI
 			var cubeGUI = gui.addFolder("Cube");
             var c_mesh_enableCube = cubeGUI.add(particleControls, 'enableCube').listen();
-            var c_mesh_cubeColor = cubeGUI.addColor(particleControls, "cubeColor");
             var c_mesh_cubeEditHeight = cubeGUI.add(particleControls, 'cubeHeight', 0, 300);
             var c_mesh_cubeEditWidth = cubeGUI.add(particleControls, 'cubeWidth', 0, 300);
             var c_mesh_cubeEditLength = cubeGUI.add(particleControls, 'cubeLenght', 0, 300);
             var c_mesh_cubeEditEscale = cubeGUI.add(particleControls, 'cubeEscale', 0, 300);
+            var c_mesh_cubeColor = cubeGUI.addColor(particleControls, "cubeColor");
 			
 			//Background GUI
 			var bkgGUI = gui.addFolder("Background");
@@ -315,10 +283,13 @@
             var renderControls = {
                 getImage: false,
                 renderName: 'render',
-                numberImageSaved: 0,
+                renderResize: false,
+                renderWidth: canvas.clientWidth,
+                renderHeight: canvas.clientHeight,
                 orbitalCamera: false,
                 orbitalSpeed: 25,
-                cameraZoom: 150
+                cameraZoom: 150,
+                orientation: "X"
             }
             
             var capturer = new CCapture( {
@@ -335,23 +306,76 @@
                         renderControls.getImage = true;
                         capturer.start();
                         document.getElementById('rendering').style = "visibility: visible";
+                        if(renderControls.renderResize)
+                            resizeCanvasDimensions(renderControls.renderWidth, renderControls.renderHeight);    
                     },
                 saveRender: function() {
                     capturer.stop();
                     capturer.save();
                     renderControls.getImage = false;
                     document.getElementById('rendering').style = "visibility: hidden";
+                    if(renderControls.renderResize)
+                        resizeCanvas();
+                    
                 }
             }
+            
+            let resizeCanvas = function( )
+            {
+                var width = window.innerWidth;
+                var height = window.innerHeight;
+                renderer.setSize( width, height);
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix( );
+            }
+            
+            //Window resizing responsive
+			window.addEventListener( 'resize', function()
+			{
+				resizeCanvas();
+			} )
+            
+            resizeCanvas();
 			
-            //Render GUI
+             //Render GUI
             var renderGUI = gui.addFolder("Image render");
             renderGUI.add(renderControls, 'renderName');
+            renderGUI.add(renderControls, 'renderResize');
+            renderGUI.add(renderControls, 'renderWidth');
+            renderGUI.add(renderControls, 'renderHeight');
             renderGUI.add(renderFunctions, "renderCapture");
             renderGUI.add(renderFunctions, "saveRender");
             renderGUI.add(renderControls, "orbitalCamera");
+            renderGUI.add(renderControls, "orientation", [ "X", "Y", "-Y" ] );
             renderGUI.add(renderControls, "orbitalSpeed", 1, 200);
             renderGUI.add(renderControls, "cameraZoom", 1, 250);
+            
+            
+            function cameraOrbital( ) {
+				if(renderControls.orientation.localeCompare("X") == 0)
+                    {
+                        //Use the time as the step to animate
+                        var speed = Date.now() * 0.00001 * renderControls.orbitalSpeed;
+                        camera.position.y = Math.sin(speed) * (251 - renderControls.cameraZoom);
+                        camera.position.z = Math.cos(speed) * (251 - renderControls.cameraZoom);
+                        camera.lookAt(scene.position); 
+                    } else if (renderControls.orientation.localeCompare("Y") == 0)
+                    {
+                        //Use the time as the step to animate
+                        var speed = Date.now() * 0.00001 * renderControls.orbitalSpeed;
+                        camera.position.x = Math.cos(speed) * (251 - renderControls.cameraZoom);
+                        camera.position.z = Math.sin(speed) * (251 - renderControls.cameraZoom);
+                        camera.lookAt(scene.position); 
+                    } else if (renderControls.orientation.localeCompare("-Y") == 0)
+                    {
+                        //Use the time as the step to animate
+                        var speed = Date.now() * 0.00001 * renderControls.orbitalSpeed * -1;
+                        camera.position.x = Math.cos(speed) * (251 - renderControls.cameraZoom);
+                        camera.position.z = Math.sin(speed) * (251 - renderControls.cameraZoom);
+                        camera.lookAt(scene.position); 
+                    }
+			}
+            
             
             //Exporter GUI
             var exporterGUI = gui.addFolder("Model exporter");
@@ -365,12 +389,12 @@
             [].forEach.call(stats.dom.children, (child) => (child.style.display = ''));
             
             //Stats GUI
-            var statsGUI = gui.addFolder("Performance");
+            //var statsGUI = gui.addFolder("Performance");
             const perfLi = document.createElement('li');
             stats.dom.style.position = 'static';
             perfLi.appendChild(stats.dom);
             perfLi.classList.add('gui-stats');
-            statsGUI.__ul.appendChild( perfLi );
+            //statsGUI.__ul.appendChild( perfLi );
             
             
             //Color functions with gradation
@@ -636,13 +660,7 @@
 			{
                 //Orbital camera
                 if(renderControls.orbitalCamera)
-                {
-                    //Use the time as the step to animate
-                    var speed = Date.now() * 0.00001 * renderControls.orbitalSpeed;
-                    camera.position.x = Math.cos(speed) * (251 - renderControls.cameraZoom);
-                    camera.position.z = Math.sin(speed) * (251 - renderControls.cameraZoom);
-                    camera.lookAt(scene.position); 
-                }
+                    cameraOrbital();
                 
 				renderer.render( scene, camera );
 				//Steps forward 

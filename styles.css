@@ -1,0 +1,44 @@
+body{
+    margin: 0;
+    overflow: hidden;
+    background-color: black;
+}
+
+header{
+    font-family: verdana;
+    background-color: #666;
+    padding: 30px;
+    text-align: center;
+    font-size: 35px;
+    color: white;
+}
+
+.imageLoad{  
+    height:0px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: -15px; 
+}
+
+.loadGIF{
+    margin-top: -20px;
+    left: 0px;
+    width: 280px; 
+    height 280px;
+}
+
+.renderDiv{
+    position:absolute;
+    font-family: verdana;
+    text-align: center;
+    margin-left: 50%;
+    font-size: 17px;
+    color: white;
+    visibility: hidden;
+    z-index: 100;
+}
+
+/* Allows the GUI to expand more to show the stats panels*/
+.dg li.gui-stats:not(.folder){
+    height: auto;
+}
