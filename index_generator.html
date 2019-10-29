@@ -105,41 +105,32 @@
 			var camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 1000 );
 			camera.position.set( 0, 0, 100 );
             
-
-            //Collapsing functions programed if an sidebar is added
-            //Sidebar collapse button 
-            /*
-            collapseButton.addEventListener("click", collapseFunction);
-            function collapseFunction() {
-                document.getElementById('sidebar').style = "width: 50px;";
-                document.getElementById('canvas').style = "left: 48px";
-                resizeCanvas();
-            } 
-
-            //Sidebar expand button 
-            expandButton.addEventListener("click", expandFunction);
-            function expandFunction() {
-                document.getElementById('sidebar').style = "width: 120px;";
-                document.getElementById('canvas').style = "left: 117px;";
-                resizeCanvas();
-            }  
-            */
-            
-            
 			//Controls
 			var Controls = new THREE.OrbitControls( camera, renderer.domElement );
 			
 			//Ligts
-			var light = new THREE.AmbientLight(0xffffff, 0.75);
+			var light = new THREE.AmbientLight(0xffffff, 0.70);
 			scene.add(light);
 
-			var light2 = new THREE.AmbientLight(0xffffff, 0.5);
-			scene.add(light2);
+			var light2 = new THREE.AmbientLight(0xffffff, 0);
+			scene.add(light2); 
             
-            var light3 = new THREE.PointLight( 0xffffff, 1, 100 );
-            light3.position.set( 50, 50, 50 );
+            var colorL3 = 0xFFFFFF;
+            var intensityL3 = 1;
+            var light3 = new THREE.DirectionalLight(colorL3, intensityL3);
+            light3.position.set(0, 10, 0);
+            light3.target.position.set(0, 0, 0);
             scene.add( light3 ); 
-		
+		  
+            var colorL4 = 0xFFFFFF;
+            var intensityL4 = 0;
+            var light4 = new THREE.DirectionalLight(colorL4, intensityL4);
+            light4.position.set(0, 10, 0);
+            light4.target.position.set(0, 0, 0);
+            scene.add( light4 );
+            
+            
+            
             var psiMaxValue = 1;
             //Load PSI data to set the max value
             for (var x = 0; x < arrayData.length - 1; x++){
@@ -183,6 +174,38 @@
             
             
 			//GUI
+            
+            //Light variables
+            var lightControls = {
+                globalLight1: true,
+                intensityLight1: 0.7,
+                colorLight1: "#FFFFFF",
+                globalLight2: false,
+                intensityLight2: 1,
+                colorLight2: "#FFFFFF",
+                pointLight3: true,
+                intensityLight3: 1,
+                colorLight3: "#FFFFFF",
+                xLight3: 0,
+                yLight3: 0,
+                zLight3: 0,
+                pointLight4: false,
+                intensityLight4: 1,
+                colorLight4: "#FFFFFF",
+                xLight4: 0,
+                yLight4: 0,
+                zLight4: 0
+            }
+            
+            //Camera variables
+            var cameraControls = {
+                resetCamera: function() 
+                { 
+                    Controls.reset();
+                    cameraControls.xCamera = 0;
+                },
+            }
+            
             //Particle variables
 			var particleControls = {
 				particlesNumber: 5000,
@@ -199,12 +222,24 @@
                 cubeLenght: 30,
                 cubeEscale: 10,
 				bkgColor: "#000000",
+                psiMaxVal: psiMaxValue,
                 psiMax: psiMaxValue,
-                psiMin: 0
+                psiMin: 0,
+                stepForward: function() 
+                { 
+                    oneStepForward();   
+                    autoPlaceParticles();
+                },
+                stepBackward: function() 
+                {     
+                    oneStepBackward();
+                    autoPlaceParticles();
+                }
 			}
             
             //3D model variables
             var modelControls = {
+                HQMode: false,
                 Enable3DModel: function() { placeParticles(); },
                 objectsNumber: 5000,
                 objectSize: 0.2,
@@ -227,17 +262,61 @@
 			var gui = new dat.GUI();
             gui.remember(particleControls, modelControls);
             
+            
+            //Lights GUI
+            var lightGUI = gui.addFolder("Lights");
+            
+            var c_mesh_enableLight1 = lightGUI.add(lightControls, 'globalLight1').listen();
+            var c_mesh_intensityLight1 = lightGUI.add(lightControls, 'intensityLight1', 0, 2);
+            lightGUI.addColor(lightControls, 'colorLight1').onChange(function (e) {
+                light.color = new THREE.Color(e);
+            });
+            
+            var c_mesh_enableLight2 = lightGUI.add(lightControls, 'globalLight2').listen();
+            var c_mesh_intensityLight2 = lightGUI.add(lightControls, 'intensityLight2', 0, 2);
+            lightGUI.addColor(lightControls, 'colorLight2').onChange(function (e) {
+                light2.color = new THREE.Color(e);
+            });
+            
+            var c_mesh_enableLight3 = lightGUI.add(lightControls, 'pointLight3').listen();
+            var c_mesh_intensityLight3 = lightGUI.add(lightControls, 'intensityLight3', 0, 2);
+            var c_mesh_xLight3 = lightGUI.add(lightControls, 'xLight3', -100, 100);
+            var c_mesh_yLight3 = lightGUI.add(lightControls, 'yLight3', -100, 100);
+            var c_mesh_zLight3 = lightGUI.add(lightControls, 'zLight3', -100, 100);
+            
+            lightGUI.addColor(lightControls, 'colorLight3').onChange(function (e) {
+                light3.color = new THREE.Color(e);
+            });
+            
+            var c_mesh_enableLight4 = lightGUI.add(lightControls, 'pointLight4').listen();
+            var c_mesh_intensityLight4 = lightGUI.add(lightControls, 'intensityLight4', 0, 2);
+            var c_mesh_xLight4 = lightGUI.add(lightControls, 'xLight4', -100, 100);
+            var c_mesh_yLight4 = lightGUI.add(lightControls, 'yLight4', -100, 100);
+            var c_mesh_zLight4 = lightGUI.add(lightControls, 'zLight4', -100, 100);
+            lightGUI.addColor(lightControls, 'colorLight4').onChange(function (e) {
+                light4.color = new THREE.Color(e);
+            });
+            
+            
+            //Camera GUI
+            var cameraGUI = gui.addFolder("Camera");
+            cameraGUI.add(cameraControls, "resetCamera");
+            
+            //Particles GUI
 			var particlesGUI = gui.addFolder("Particles");
 			//var c_mesh_particlesNumber = gui.add(particleControls, 'particlesNumber', 10, arrayData[0].length);
 			var c_mesh_particlesNumber = particlesGUI.add(particleControls, 'particlesNumber', 10, arrayData[0].length);
 			var c_mesh_particleSize = particlesGUI.add(particleControls, 'particleSize', 0.01, 1);
 			var c_mesh_scaleColor = particlesGUI.add(particleControls, 'scaleColor', 0, 2);
-            var c_mesh_psiMax = particlesGUI.add(particleControls, 'psiMax', 0, psiMaxValue);
+            var c_mesh_psiMaxVal = particlesGUI.add(particleControls, 'psiMaxVal');
+            var c_mesh_psiMax = particlesGUI.add(particleControls, 'psiMax', 0, psiMaxValue).listen();
             var c_mesh_psiMin = particlesGUI.add(particleControls, 'psiMin', 0, psiMaxValue);
             particlesGUI.open();
 
 			//Time steps GUI
 			var stepsGUI = gui.addFolder("Time Steps");
+            stepsGUI.add(particleControls, "stepForward");
+            stepsGUI.add(particleControls, "stepBackward");
 			var c_mesh_timeStep = stepsGUI.add(particleControls, 'timeStep', 0, arrayData.length - 1).listen();
             var c_mesh_speedStep = stepsGUI.add(particleControls, 'speedStep', 0, 200).listen();
 			var c_mesh_playForward = stepsGUI.add(particleControls, 'playForward').listen();
@@ -246,6 +325,7 @@
 
             //3D model GUI
             var modelGUI = gui.addFolder("3D Model");
+            var c_mesh_HQMode = modelGUI.add(modelControls, 'HQMode').listen();
             modelGUI.add(modelControls, "Enable3DModel");
             var c_mesh_objectsNumber = modelGUI.add(modelControls, 'objectsNumber', 10, arrayData[0].length);
             var c_mesh_objectSize = modelGUI.add(modelControls, 'objectSize', 0.01, 0.5);
@@ -284,6 +364,7 @@
                 getImage: false,
                 renderName: 'render',
                 renderResize: false,
+                autoPlayForward: false,
                 renderWidth: canvas.clientWidth,
                 renderHeight: canvas.clientHeight,
                 orbitalCamera: false,
@@ -302,29 +383,47 @@
             
              //Render variables
             var renderFunctions = {
-                renderCapture: function() {
+                startCapturing: function() {
                         renderControls.getImage = true;
+                        if(renderControls.autoPlayForward)
+                        {
+                            particleControls.playForward = true;
+                        }
                         capturer.start();
                         document.getElementById('rendering').style = "visibility: visible";
                         if(renderControls.renderResize)
                             resizeCanvasDimensions(renderControls.renderWidth, renderControls.renderHeight);    
                     },
-                saveRender: function() {
+                stopAndSave: function() {
                     capturer.stop();
                     capturer.save();
                     renderControls.getImage = false;
+                    if(renderControls.autoPlayForward)
+                    {
+                        particleControls.playForward = false;
+                    }
                     document.getElementById('rendering').style = "visibility: hidden";
                     if(renderControls.renderResize)
                         resizeCanvas();
                     
                 }
             }
-            
+			
+            //Resizing functions
             let resizeCanvas = function( )
             {
                 var width = window.innerWidth;
                 var height = window.innerHeight;
                 renderer.setSize( width, height);
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix( );
+                renderControls.renderWidth = canvas.clientWidth;
+                renderControls.renderHeight = canvas.clientHeight;
+            }
+            
+            let resizeCanvasDimensions = function(x,y)
+            {
+                renderer.setSize(x, y);
                 camera.aspect = width / height;
                 camera.updateProjectionMatrix( );
             }
@@ -334,22 +433,24 @@
 			{
 				resizeCanvas();
 			} )
+             
             
+            //Always adapts the canvas size to the environment
             resizeCanvas();
-			
-             //Render GUI
+            
+            //Render GUI
             var renderGUI = gui.addFolder("Image render");
             renderGUI.add(renderControls, 'renderName');
             renderGUI.add(renderControls, 'renderResize');
             renderGUI.add(renderControls, 'renderWidth');
             renderGUI.add(renderControls, 'renderHeight');
-            renderGUI.add(renderFunctions, "renderCapture");
-            renderGUI.add(renderFunctions, "saveRender");
+            renderGUI.add(renderControls, 'autoPlayForward');
+            renderGUI.add(renderFunctions, "startCapturing");
+            renderGUI.add(renderFunctions, "stopAndSave");
             renderGUI.add(renderControls, "orbitalCamera");
             renderGUI.add(renderControls, "orientation", [ "X", "Y", "-Y" ] );
             renderGUI.add(renderControls, "orbitalSpeed", 1, 200);
             renderGUI.add(renderControls, "cameraZoom", 1, 250);
-            
             
             function cameraOrbital( ) {
 				if(renderControls.orientation.localeCompare("X") == 0)
@@ -395,6 +496,14 @@
             perfLi.appendChild(stats.dom);
             perfLi.classList.add('gui-stats');
             //statsGUI.__ul.appendChild( perfLi );
+            
+            //Reset GUI sliders
+            var resetSliders = function (name) {
+                for (var i = 0; i < gui.__controllers.length; i++) {
+                    if (!gui.__controllers.property == name)
+                        gui.__controllers[i].setValue(0);
+                }
+            };
             
             
             //Color functions with gradation
@@ -554,6 +663,114 @@
             placeParticlesLowRender();
             //placeParticles();
 
+            //Repeated code set into functions
+            //Automatically detect if HQ mode is enabled or not to set
+            //the quality of the render
+            var autoPlaceParticles = function( ){
+                if(modelControls.HQMode)
+                {
+                    placeParticles();
+                } else {
+                    placeParticlesLowRender( );
+                }
+            }
+            
+            //Automatic stepForward control
+            var oneStepForward = function( ){
+                if (particleControls.timeStep == arrayData.length - 1) 
+                    particleControls.timeStep = 0;
+                else
+                    particleControls.timeStep += 1;
+            }
+            
+            //Automatic stepBackward control
+            var oneStepBackward = function( ){
+                if (particleControls.timeStep == 0) 
+				    particleControls.timeStep = arrayData.length -1;
+				else
+				    particleControls.timeStep -= 1;
+            }
+            
+            //Light functions
+            c_mesh_enableLight1.onChange(function( ){
+                if (lightControls.globalLight1)
+                {
+                    light.intensity = 1.0;
+                } else {
+                    light.intensity = 0.0;
+                }
+            });
+            
+            c_mesh_intensityLight1.onChange(function( ){
+                light.intensity = lightControls.intensityLight1;
+            });
+
+            c_mesh_enableLight2.onChange(function( ){
+                if (lightControls.globalLight2)
+                {
+                    light2.intensity = 1.0;
+                } else {
+                    light2.intensity = 0.0;
+                }
+            });
+            
+            c_mesh_intensityLight2.onChange(function( ){
+                light2.intensity = lightControls.intensityLight2;
+            });
+            
+            c_mesh_enableLight3.onChange(function( ){
+                if (lightControls.pointLight3)
+                {
+                    light3.intensity = 1.0;
+                } else {
+                    light3.intensity = 0.0;
+                }
+            });
+            
+            c_mesh_intensityLight3.onChange(function( ){
+                light3.intensity = lightControls.intensityLight3;
+            });
+            
+            c_mesh_xLight3.onChange(function( ){
+                light3.position.set(lightControls.xLight3, lightControls.yLight3, lightControls.zLight3);
+            });
+            
+            c_mesh_yLight3.onChange(function( ){
+                light3.position.set(lightControls.xLight3, lightControls.yLight3, lightControls.zLight3);
+            });
+            
+            c_mesh_zLight3.onChange(function( ){
+                light3.position.set(lightControls.xLight3, lightControls.yLight3, lightControls.zLight3);
+            });
+            
+            c_mesh_enableLight4.onChange(function( ){
+                if (lightControls.pointLight4)
+                {
+                    light4.intensity = 1.0;
+                } else {
+                    light4.intensity = 0.0;
+                }
+            });
+            
+            c_mesh_intensityLight4.onChange(function( ){
+                light4.intensity = lightControls.intensityLight3;
+            });
+            
+            c_mesh_xLight4.onChange(function( ){
+                light4.position.set(lightControls.xLight4, lightControls.yLight4, lightControls.zLight4);
+            });
+            
+            c_mesh_yLight4.onChange(function( ){
+                light4.position.set(lightControls.xLight4, lightControls.yLight4, lightControls.zLight4);
+            });
+            
+            c_mesh_zLight4.onChange(function( ){
+                light4.position.set(lightControls.xLight4, lightControls.yLight4, lightControls.zLight4);
+            });
+            
+            
+            //Camera functions
+            
             //Particle functions
 			c_mesh_particlesNumber.onChange(function( ){
 				placeParticlesLowRender( );
@@ -563,22 +780,27 @@
 				placeParticlesLowRender( );
 			});
             
+            c_mesh_psiMaxVal.onChange(function( ){
+                particleControls.psiMax = particleControls.psiMaxVal;
+                autoPlaceParticles();
+			});
+            
             c_mesh_psiMax.onChange(function( ){
-                placeParticlesLowRender( );
+                particleControls.psiMaxVal = particleControls.psiMax;
+                autoPlaceParticles();
 			});
             
             c_mesh_psiMin.onChange(function( ){
-                placeParticlesLowRender( );
+                autoPlaceParticles();
 			});
 
 			c_mesh_scaleColor.onChange(function( ){
-				placeParticlesLowRender( );
+                autoPlaceParticles();
 			});
             
             //Time functions
 			c_mesh_timeStep.onChange(function( ){
-				placeParticlesLowRender( );
-                //placeParticles();
+				autoPlaceParticles();
 			});
             
 			c_mesh_playForward.onChange(function( ){
@@ -591,6 +813,10 @@
             
             
             //Model functions
+            c_mesh_HQMode.onChange(function( ){
+				autoPlaceParticles();
+			});  
+            
             c_mesh_objectsNumber.onChange(function( ){
 				placeParticles( );
 			});  
@@ -663,27 +889,14 @@
                     cameraOrbital();
                 
 				renderer.render( scene, camera );
-				//Steps forward 
-				if(particleControls.playForward)
-				{
-					if (particleControls.timeStep == arrayData.length - 1) 
-						particleControls.timeStep = 0;
-					else
-						particleControls.timeStep += 1;
-                    placeParticlesLowRender( );
-					//placeParticles( );
-				}
 				
-				//Steps backward 
+				if(particleControls.playForward)
+					oneStepForward();
+                
 				if(particleControls.playBackward)
-				{
-					if (particleControls.timeStep == 0) 
-						particleControls.timeStep = arrayData.length -1;
-					else
-						particleControls.timeStep -= 1;
-					placeParticlesLowRender( );
-                    //placeParticles( );
-				}
+					oneStepBackward();
+                
+                autoPlaceParticles();
                 
 			}
 			
@@ -696,7 +909,6 @@
                 if(renderControls.getImage) /*Saves renders*/
                 {
                     capturer.capture( canvas );
-                    renderControls.numberImageSaved += 1;
                 }
 			}
             
