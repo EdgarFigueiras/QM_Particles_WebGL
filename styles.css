@@ -1,23 +1,42 @@
-body{
-    margin: 0;
-    overflow: hidden;
-    background-color: black;
+/*
+    DEMO STYLE
+*/
+
+a, a:hover, a:focus {
+    color: inherit;
+    text-decoration: none;
+    transition: all 0.3s;
 }
 
-header{
+
+.line {
+    width: 100%;
+    height: 1px;
+    border-bottom: 1px dashed #ddd;
+    margin: 40px 0;
+}
+
+canvas {
+    position: absolute;
+    top: 0px;
+    z-index: 0;
+}
+
+header {
+    position:relative;
     font-family: verdana;
-    background-color: #666;
-    padding: 30px;
+    padding-top: 6%;
     text-align: center;
-    font-size: 35px;
-    color: white;
 }
 
-.imageLoad{  
-    height:0px;
-    margin-left: auto;
-    margin-right: auto;
-    margin-top: -15px; 
+.renderDiv{
+    position:absolute;
+    font-family: verdana;
+    text-align: center;
+    font-size: 17px;
+    color: white;
+    visibility: hidden;
+    z-index: 100;
 }
 
 .loadGIF{
@@ -27,18 +46,21 @@ header{
     height 280px;
 }
 
-.renderDiv{
-    position:absolute;
-    font-family: verdana;
-    text-align: center;
-    margin-left: 50%;
-    font-size: 17px;
-    color: white;
-    visibility: hidden;
-    z-index: 100;
-}
-
-/* Allows the GUI to expand more to show the stats panels*/
 .dg li.gui-stats:not(.folder){
     height: auto;
 }
+
+.dg .cr.number input[type="text"] {
+    padding: 1px;
+}
+
+.dg .cr.string input[type="text"] {
+    padding: 1px;
+}
+
+
+
+
+
+
+
